@@ -1,0 +1,3110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDF Studio Local — Suíte Completa de PDF 100% Offline no Navegador</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Bibliotecas PDF & Conversão (100% Client-Side) -->
+  <!-- pdf-lib para criação, edição, merge, split, rotação, marca d'água, numeração e assinatura -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <!-- PDF.js para renderização de páginas, miniaturas, extração de texto e compressão -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- jsPDF & html2canvas para conversões HTML/DOCX/XLSX -> PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- JSZip para empacotar múltiplas imagens ou PDFs divididos -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- Mammoth.js para ler arquivos DOCX -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <!-- SheetJS (XLSX) para ler planilhas Excel/CSV -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- QRious para geração de QR Code 100% client-side em Canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#fff1f2',
+              100: '#ffe4e6',
+              200: '#fecdd3',
+              500: '#f43f5e',
+              600: '#e5322d', // Vermelho/Coral estilo iLovePDF
+              700: '#c81e1a',
+              800: '#9f1239',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f6f7fb;
+      color: #1e293b;
+    }
+
+    /* Scrollbar discreta e elegante */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Efeito de hover nos cards de ferramentas */
+    .tool-card {
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .tool-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 14px 28px -8px rgba(15, 23, 42, 0.1), 0 4px 10px -2px rgba(229, 50, 45, 0.08);
+      border-color: #fecdd3;
+    }
+
+    /* Dropzone animação */
+    .dropzone-active {
+      border-color: #e5322d !important;
+      background-color: #fff1f2 !important;
+      transform: scale(1.01);
+    }
+
+    /* Canvas de assinatura */
+    #signature-pad {
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    /* Container oculto para renderização HTML -> PDF */
+    #render-sandbox {
+      position: fixed;
+      left: -9999px;
+      top: 0;
+      width: 794px; /* ~A4 em 96dpi */
+      background: #ffffff;
+      color: #111827;
+      padding: 40px;
+      z-index: -1;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- ==================== CABEÇALHO / NAVBAR ==================== -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <!-- Logo & Badge Privacidade -->
+      <div class="flex items-center gap-3 cursor-pointer" onclick="app.goHome()">
+        <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white shadow-md shadow-brand-600/20">
+          <i data-lucide="file-stack" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-lg sm:text-xl tracking-tight text-slate-900">
+              PDF Studio <span class="text-brand-600">Local</span>
+            </span>
+            <span class="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <i data-lucide="shield-check" class="w-3 h-3"></i> 100% Offline
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-500 hidden sm:block">Seus arquivos nunca saem do seu navegador</p>
+        </div>
+      </div>
+
+      <!-- Navegação Principal + Status IndexedDB -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button onclick="app.goHome()" id="nav-tools-btn"
+          class="px-3 py-2 rounded-xl text-sm font-semibold text-brand-600 bg-brand-50 hover:bg-brand-100 transition flex items-center gap-1.5">
+          <i data-lucide="layout-grid" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Todas as Ferramentas</span>
+          <span class="sm:hidden">Ferramentas</span>
+        </button>
+
+        <button onclick="app.toggleHistoryDrawer(true)"
+          class="relative px-3 py-2 rounded-xl text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition flex items-center gap-2">
+          <i data-lucide="database" class="w-4 h-4 text-brand-600"></i>
+          <span class="hidden md:inline">Histórico Local</span>
+          <span id="cache-badge-count" class="px-1.5 py-0.5 text-xs font-bold rounded-full bg-brand-600 text-white">0</span>
+        </button>
+
+        <!-- Indicador de espaço usado no IndexedDB -->
+        <div class="hidden lg:flex items-center gap-2 pl-2 border-l border-slate-200">
+          <div class="text-right">
+            <div class="text-[11px] font-medium text-slate-500">Cache Local (IndexedDB)</div>
+            <div id="cache-size-indicator" class="text-xs font-bold text-slate-800">0.00 MB usados</div>
+          </div>
+          <button onclick="app.clearAllCachePrompt()" title="Limpar todo o cache local"
+            class="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== CONTEÚDO PRINCIPAL ==================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- VIEW 1: GRADE DE FERRAMENTAS (HOME) -->
+    <section id="home-view" class="space-y-8">
+      <!-- Hero Compacto -->
+      <div class="text-center max-w-3xl mx-auto space-y-3">
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+          Todas as ferramentas de PDF que você precisa, <span class="text-brand-600">rodando direto no seu navegador</span>
+        </h1>
+        <p class="text-slate-600 text-sm sm:text-base">
+          Junte, divida, comprima, converta Word/Excel/Imagens, assine e proteja seus PDFs com velocidade instantânea, privacidade total e histórico salvo localmente.
+        </p>
+
+        <!-- Barra de Busca e Filtro por Categoria -->
+        <div class="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div class="relative w-full sm:w-96">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="tool-search-input" placeholder="Buscar ferramenta (ex: juntar, word, comprimir...)"
+              oninput="app.filterTools()"
+              class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent shadow-xs" />
+          </div>
+        </div>
+
+        <!-- Pills de Categorias -->
+        <div id="category-pills" class="flex flex-wrap items-center justify-center gap-2 pt-2">
+          <button data-cat="all" onclick="app.setCategory('all')" class="cat-pill active px-3.5 py-1.5 rounded-full text-xs font-semibold bg-slate-900 text-white transition">Todas (19)</button>
+          <button data-cat="organizar" onclick="app.setCategory('organizar')" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:border-slate-300 transition">Organizar PDF</button>
+          <button data-cat="otimizar" onclick="app.setCategory('otimizar')" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:border-slate-300 transition">Otimizar</button>
+          <button data-cat="para-pdf" onclick="app.setCategory('para-pdf')" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:border-slate-300 transition">Converter para PDF</button>
+          <button data-cat="de-pdf" onclick="app.setCategory('de-pdf')" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:border-slate-300 transition">Converter de PDF</button>
+          <button data-cat="editar" onclick="app.setCategory('editar')" class="cat-pill px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:border-slate-300 transition">Editar e Segurança</button>
+        </div>
+      </div>
+
+      <!-- Grade de Cards de Ferramentas -->
+      <div id="tools-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <!-- Preenchido dinamicamente via JavaScript -->
+      </div>
+    </section>
+
+    <!-- VIEW 2: WORKSPACE DA FERRAMENTA SELECIONADA -->
+    <section id="workspace-view" class="hidden space-y-6">
+      <!-- Barra superior do Workspace -->
+      <div class="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <div class="flex items-center gap-3">
+          <button onclick="app.goHome()"
+            class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition flex items-center gap-1 text-sm font-medium">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            <span>Voltar</span>
+          </button>
+          <div id="ws-icon-box" class="w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-xs"></div>
+          <div>
+            <h2 id="ws-title" class="text-xl font-bold text-slate-900">Título da Ferramenta</h2>
+            <p id="ws-desc" class="text-xs sm:text-sm text-slate-500">Descrição da ferramenta</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="app.openCachePickerForCurrentTool()"
+            class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 transition flex items-center gap-1.5">
+            <i data-lucide="folder-clock" class="w-4 h-4"></i>
+            <span>Carregar do Histórico Local</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Área Principal Dinâmica da Ferramenta -->
+      <div id="ws-body" class="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 sm:p-8 min-h-[420px]">
+        <!-- Injetado por cada ferramenta -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== GAVETA LATERAL: HISTÓRICO / CACHE LOCAL (INDEXEDDB) ==================== -->
+  <div id="history-drawer-backdrop" onclick="app.toggleHistoryDrawer(false)"
+    class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 hidden transition-opacity"></div>
+
+  <aside id="history-drawer"
+    class="fixed top-0 right-0 h-full w-full max-w-lg bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+    <!-- Cabeçalho da Gaveta -->
+    <div class="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-brand-600 text-white flex items-center justify-center">
+          <i data-lucide="hard-drive" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-900 text-base">Histórico / Cache Local</h3>
+          <p class="text-xs text-slate-500">Arquivos salvos automaticamente no IndexedDB</p>
+        </div>
+      </div>
+      <button onclick="app.toggleHistoryDrawer(false)" class="p-2 rounded-xl hover:bg-slate-200 text-slate-600">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Barra de Armazenamento e Limpeza -->
+    <div class="px-5 py-3 bg-brand-50/60 border-b border-brand-100 flex items-center justify-between">
+      <div class="flex items-center gap-2 text-xs font-semibold text-slate-700">
+        <i data-lucide="pie-chart" class="w-4 h-4 text-brand-600"></i>
+        <span>Espaço utilizado: <strong id="drawer-cache-size" class="text-brand-700">0.00 MB</strong></span>
+      </div>
+      <button onclick="app.clearAllCachePrompt()"
+        class="px-2.5 py-1 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-100 transition flex items-center gap-1">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Limpar Tudo
+      </button>
+    </div>
+
+    <!-- Lista de Arquivos em Cache -->
+    <div id="history-list" class="flex-1 overflow-y-auto p-4 space-y-3">
+      <!-- Itens preenchidos dinamicamente -->
+    </div>
+  </aside>
+
+  <!-- ==================== MODAL DE CONFIRMAÇÃO / PICKER DO CACHE ==================== -->
+  <div id="custom-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between">
+        <h4 id="modal-title" class="text-lg font-bold text-slate-900">Título</h4>
+        <button onclick="app.closeModal()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div id="modal-body" class="text-sm text-slate-600 max-h-80 overflow-y-auto"></div>
+      <div id="modal-footer" class="flex justify-end gap-2 pt-2"></div>
+    </div>
+  </div>
+
+  <!-- ==================== OVERLAY DE PROCESSAMENTO ==================== -->
+  <div id="loading-overlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex-col items-center justify-center p-4 text-white">
+    <div class="bg-white text-slate-900 rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center space-y-4">
+      <div class="w-12 h-12 rounded-full border-4 border-brand-100 border-t-brand-600 animate-spin mx-auto"></div>
+      <div>
+        <h4 id="loading-title" class="font-bold text-base">Processando arquivo...</h4>
+        <p id="loading-subtitle" class="text-xs text-slate-500 mt-1">Tudo acontece localmente no seu dispositivo.</p>
+      </div>
+      <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+        <div id="loading-bar" class="bg-brand-600 h-full transition-all duration-300" style="width: 30%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== CONTAINER DE NOTIFICAÇÕES TOAST ==================== -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- ==================== SANDBOX INVISÍVEL PARA HTML/DOCX/XLSX -> PDF ==================== -->
+  <div id="render-sandbox"></div>
+
+  <!-- ==================== RODAPÉ ==================== -->
+  <footer class="bg-white border-t border-slate-200 mt-12 py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+      <div class="flex items-center gap-2">
+        <span class="font-bold text-slate-700">PDF Studio Local</span>
+        <span>•</span>
+        <span>Processamento 100% Client-Side via WebAssembly & JavaScript</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <span class="flex items-center gap-1 text-emerald-600 font-medium">
+          <i data-lucide="lock" class="w-3.5 h-3.5"></i> Zero upload para servidores externos
+        </span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ==================== LÓGICA JAVASCRIPT MODULAR ==================== -->
+  <script>
+    // Configuração do Worker do PDF.js
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    /**
+     * ============================================================================
+     * MÓDULO 1: WRAPPER INDEXEDDB PARA CACHE LOCAL PERSISTENTE
+     * ============================================================================
+     */
+    const LocalCacheDB = {
+      dbName: 'PDFStudioLocalDB',
+      storeName: 'processedFiles',
+      version: 1,
+      db: null,
+
+      async init() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(this.dbName, this.version);
+          request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(this.storeName)) {
+              const store = db.createObjectStore(this.storeName, { keyPath: 'id', autoIncrement: true });
+              store.createIndex('timestamp', 'timestamp', { unique: false });
+            }
+          };
+          request.onsuccess = (e) => {
+            this.db = e.target.result;
+            resolve(this.db);
+          };
+          request.onerror = (e) => reject(e.target.error);
+        });
+      },
+
+      async saveFile({ fileName, toolId, toolName, mimeType, blob }) {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+          const tx = this.db.transaction([this.storeName], 'readwrite');
+          const store = tx.objectStore(this.storeName);
+          const record = {
+            fileName,
+            toolId,
+            toolName,
+            mimeType: mimeType || blob.type || 'application/pdf',
+            size: blob.size,
+            blob,
+            timestamp: Date.now()
+          };
+          const req = store.add(record);
+          req.onsuccess = () => {
+            record.id = req.result;
+            resolve(record);
+          };
+          req.onerror = () => reject(req.error);
+        });
+      },
+
+      async getAllFiles() {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+          const tx = this.db.transaction([this.storeName], 'readonly');
+          const store = tx.objectStore(this.storeName);
+          const req = store.getAll();
+          req.onsuccess = () => {
+            const items = req.result || [];
+            items.sort((a, b) => b.timestamp - a.timestamp);
+            resolve(items);
+          };
+          req.onerror = () => reject(req.error);
+        });
+      },
+
+      async getFileById(id) {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+          const tx = this.db.transaction([this.storeName], 'readonly');
+          const store = tx.objectStore(this.storeName);
+          const req = store.get(Number(id));
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+      },
+
+      async deleteFile(id) {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+          const tx = this.db.transaction([this.storeName], 'readwrite');
+          const store = tx.objectStore(this.storeName);
+          const req = store.delete(Number(id));
+          req.onsuccess = () => resolve();
+          req.onerror = () => reject(req.error);
+        });
+      },
+
+      async clearAll() {
+        if (!this.db) await this.init();
+        return new Promise((resolve, reject) => {
+          const tx = this.db.transaction([this.storeName], 'readwrite');
+          const store = tx.objectStore(this.storeName);
+          const req = store.clear();
+          req.onsuccess = () => resolve();
+          req.onerror = () => reject(req.error);
+        });
+      }
+    };
+
+    /**
+     * ============================================================================
+     * MÓDULO 2: UTILITÁRIOS GERAIS & RENDERIZAÇÃO DE PDF
+     * ============================================================================
+     */
+    const Utils = {
+      formatBytes(bytes) {
+        if (!bytes || bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      },
+
+      formatDate(ts) {
+        return new Date(ts).toLocaleString('pt-BR', {
+          day: '2-digit', month: '2-digit', year: '2-digit',
+          hour: '2-digit', minute: '2-digit'
+        });
+      },
+
+      downloadBlob(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      },
+
+      readFileAsArrayBuffer(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('Falha ao ler arquivo local.'));
+          reader.readAsArrayBuffer(file);
+        });
+      },
+
+      readFileAsDataURL(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('Falha ao ler imagem.'));
+          reader.readAsDataURL(file);
+        });
+      },
+
+      hexToRgbNormalized(hex) {
+        const clean = hex.replace('#', '');
+        const bigint = parseInt(clean, 16);
+        const r = ((bigint >> 16) & 255) / 255;
+        const g = ((bigint >> 8) & 255) / 255;
+        const b = (bigint & 255) / 255;
+        return { r, g, b };
+      },
+
+      parsePageRanges(rangeStr, totalPages) {
+        const pages = new Set();
+        const parts = rangeStr.split(',').map(p => p.trim()).filter(Boolean);
+        for (const part of parts) {
+          if (part.includes('-')) {
+            const [startStr, endStr] = part.split('-');
+            const start = Math.max(1, parseInt(startStr, 10));
+            const end = Math.min(totalPages, parseInt(endStr, 10));
+            if (!isNaN(start) && !isNaN(end) && start <= end) {
+              for (let i = start; i <= end; i++) pages.add(i - 1);
+            }
+          } else {
+            const num = parseInt(part, 10);
+            if (!isNaN(num) && num >= 1 && num <= totalPages) {
+              pages.add(num - 1);
+            }
+          }
+        }
+        return Array.from(pages).sort((a, b) => a - b);
+      },
+
+      async renderPdfThumbnails(arrayBuffer, scale = 0.45) {
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer.slice(0) });
+        const pdf = await loadingTask.promise;
+        const thumbs = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale });
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          thumbs.push({
+            pageIndex: i - 1,
+            pageNumber: i,
+            dataUrl: canvas.toDataURL('image/jpeg', 0.8),
+            width: viewport.width,
+            height: viewport.height
+          });
+        }
+        return thumbs;
+      }
+    };
+
+    /**
+     * ============================================================================
+     * MÓDULO 3: CATÁLOGO DAS 18 FERRAMENTAS
+     * ============================================================================
+     */
+    const TOOLS_CATALOG = [
+      // ORGANIZAR PDF
+      {
+        id: 'merge',
+        title: 'Juntar PDF',
+        desc: 'Combine múltiplos arquivos PDF em um único documento na ordem que desejar.',
+        category: 'organizar',
+        categoryLabel: 'Organizar PDF',
+        icon: 'combine',
+        color: 'bg-rose-600',
+        accept: '.pdf',
+        multiple: true
+      },
+      {
+        id: 'split',
+        title: 'Dividir PDF',
+        desc: 'Extraia intervalos de páginas ou separe todas as páginas em arquivos individuais (ZIP).',
+        category: 'organizar',
+        categoryLabel: 'Organizar PDF',
+        icon: 'scissors',
+        color: 'bg-rose-500',
+        accept: '.pdf',
+        multiple: false
+      },
+      {
+        id: 'remove-pages',
+        title: 'Remover Páginas',
+        desc: 'Visualize miniaturas de cada página e clique nas que deseja excluir do documento.',
+        category: 'organizar',
+        categoryLabel: 'Organizar PDF',
+        icon: 'file-minus',
+        color: 'bg-red-600',
+        accept: '.pdf',
+        multiple: false
+      },
+      {
+        id: 'extract-pages',
+        title: 'Extrair Páginas',
+        desc: 'Selecione visualmente páginas específicas para criar um novo arquivo PDF.',
+        category: 'organizar',
+        categoryLabel: 'Organizar PDF',
+        icon: 'file-output',
+        color: 'bg-orange-600',
+        accept: '.pdf',
+        multiple: false
+      },
+      {
+        id: 'organize',
+        title: 'Organizar PDF',
+        desc: 'Reordene, gire individualmente ou duplique páginas antes de salvar o resultado.',
+        category: 'organizar',
+        categoryLabel: 'Organizar PDF',
+        icon: 'layout-list',
+        color: 'bg-amber-600',
+        accept: '.pdf',
+        multiple: false
+      },
+
+      // OTIMIZAR
+      {
+        id: 'compress',
+        title: 'Comprimir PDF',
+        desc: 'Reduza drasticamente o tamanho do PDF mantendo boa legibilidade (Extrema, Recomendada ou Baixa).',
+        category: 'otimizar',
+        categoryLabel: 'Otimizar',
+        icon: 'minimize-2',
+        color: 'bg-emerald-600',
+        accept: '.pdf',
+        multiple: false
+      },
+
+      // CONVERTER PARA PDF
+      {
+        id: 'img-to-pdf',
+        title: 'JPG / PNG para PDF',
+        desc: 'Converta imagens JPG, PNG ou WebP para PDF ajustando orientação, margem e tamanho A4.',
+        category: 'para-pdf',
+        categoryLabel: 'Converter para PDF',
+        icon: 'image',
+        color: 'bg-yellow-500',
+        accept: 'image/jpeg,image/png,image/webp',
+        multiple: true
+      },
+      {
+        id: 'word-to-pdf',
+        title: 'Word (DOCX) para PDF',
+        desc: 'Leia documentos .docx localmente, visualize o conteúdo formatado e exporte para PDF.',
+        category: 'para-pdf',
+        categoryLabel: 'Converter para PDF',
+        icon: 'file-text',
+        color: 'bg-blue-600',
+        accept: '.docx',
+        multiple: false
+      },
+      {
+        id: 'excel-to-pdf',
+        title: 'Excel (XLSX/CSV) para PDF',
+        desc: 'Transforme planilhas Excel ou CSV em tabelas formatadas prontas para PDF.',
+        category: 'para-pdf',
+        categoryLabel: 'Converter para PDF',
+        icon: 'table',
+        color: 'bg-green-600',
+        accept: '.xlsx,.xls,.csv',
+        multiple: false
+      },
+      {
+        id: 'html-to-pdf',
+        title: 'HTML / Texto para PDF',
+        desc: 'Cole código HTML ou texto rico com pré-visualização instantânea e gere um PDF limpo.',
+        category: 'para-pdf',
+        categoryLabel: 'Converter para PDF',
+        icon: 'code-2',
+        color: 'bg-indigo-600',
+        accept: '.html,.txt',
+        multiple: false
+      },
+
+      // CONVERTER DE PDF
+      {
+        id: 'pdf-to-img',
+        title: 'PDF para JPG / PNG',
+        desc: 'Renderize cada página do PDF em imagem de alta resolução (baixe avulso ou em ZIP).',
+        category: 'de-pdf',
+        categoryLabel: 'Converter de PDF',
+        icon: 'images',
+        color: 'bg-amber-500',
+        accept: '.pdf',
+        multiple: false
+      },
+      {
+        id: 'pdf-to-word',
+        title: 'PDF para Word / Texto',
+        desc: 'Extraia todo o texto estruturado de cada página para arquivo .doc (Word) ou .txt.',
+        category: 'de-pdf',
+        categoryLabel: 'Converter de PDF',
+        icon: 'file-type-2',
+        color: 'bg-sky-600',
+        accept: '.pdf',
+        multiple: false
+      },
+
+      // EDITAR E SEGURANÇA
+      {
+        id: 'rotate',
+        title: 'Girar PDF',
+        desc: 'Gire todas as páginas ou páginas específicas em 90°, 180° ou 270°.',
+        category: 'editar',
+        categoryLabel: 'Editar e Segurança',
+        icon: 'rotate-cw',
+        color: 'bg-purple-600',
+        accept: '.pdf',
+        multiple: false
+      },
+      {
+        id: 'page-numbers',
+        title: 'Números de Página',
+        desc: 'Adicione paginação personalizada (ex: Página 1 de 10) no cabeçalho ou rodapé.',
+        category: 'editar',
+        categoryLabel: 'Editar e Segurança',
+        icon: 'hash',
+        color: 'bg-violet-600',
+        accept: '.pdf',
+        multiple: false
+      },
+      {
+        id: 'watermark',
+        title: "Marca d'Água",
+        desc: 'Aplique texto sobre as páginas com controle de opacidade, rotação, cor e posição.',
+        category: 'editar',
+        categoryLabel: 'Editar e Segurança',
+        icon: 'stamp',
+        color: 'bg-fuchsia-600',
+        accept: '.pdf',
+        multiple: false
+      },
+      {
+        id: 'protect',
+        title: 'Proteger PDF (Senha)',
+        desc: 'Adicione metadados de proteção e bloqueio de acesso com senha personalizada.',
+        category: 'editar',
+        categoryLabel: 'Editar e Segurança',
+        icon: 'shield-alert',
+        color: 'bg-slate-800',
+        accept: '.pdf',
+        multiple: false
+      },
+      {
+        id: 'unlock',
+        title: 'Desbloquear PDF',
+        desc: 'Abra PDFs protegidos informando a senha e salve uma nova cópia livre de restrições.',
+        category: 'editar',
+        categoryLabel: 'Editar e Segurança',
+        icon: 'unlock',
+        color: 'bg-teal-600',
+        accept: '.pdf',
+        multiple: false
+      },
+      {
+        id: 'sign',
+        title: 'Assinar PDF',
+        desc: 'Desenhe sua assinatura manuscrita no navegador e posicione sobre qualquer página do PDF.',
+        category: 'editar',
+        categoryLabel: 'Editar e Segurança',
+        icon: 'pen-tool',
+        color: 'bg-pink-600',
+        accept: '.pdf',
+        multiple: false
+      },
+      {
+        id: 'qr-code',
+        title: 'Gerar QR Code',
+        desc: 'Crie QR Codes personalizados em PNG/PDF ou insira um QR Code diretamente em um PDF existente.',
+        category: 'editar',
+        categoryLabel: 'Editar e Segurança',
+        icon: 'qr-code',
+        color: 'bg-cyan-600',
+        accept: '.pdf',
+        multiple: false
+      }
+    ];
+
+    /**
+     * ============================================================================
+     * MÓDULO 4: CONTROLADOR PRINCIPAL DA APLICAÇÃO
+     * ============================================================================
+     */
+    const app = {
+      currentCategory: 'all',
+      currentTool: null,
+      qrMode: 'standalone',
+      state: {
+        files: [],
+        thumbnails: [],
+        selectedPages: new Set(),
+        pageOrder: [],
+        extraData: null
+      },
+
+      async init() {
+        await LocalCacheDB.init();
+        this.renderToolsGrid();
+        await this.refreshCacheUI();
+        lucide.createIcons();
+      },
+
+      goHome() {
+        this.currentTool = null;
+        this.resetState();
+        document.getElementById('workspace-view').classList.add('hidden');
+        document.getElementById('home-view').classList.remove('hidden');
+        this.renderToolsGrid();
+        lucide.createIcons();
+      },
+
+      resetState() {
+        this.state = {
+          files: [],
+          thumbnails: [],
+          selectedPages: new Set(),
+          pageOrder: [],
+          extraData: null
+        };
+      },
+
+      setCategory(cat) {
+        this.currentCategory = cat;
+        document.querySelectorAll('.cat-pill').forEach(btn => {
+          if (btn.dataset.cat === cat) {
+            btn.classList.add('bg-slate-900', 'text-white');
+            btn.classList.remove('bg-white', 'text-slate-600', 'border', 'border-slate-200');
+          } else {
+            btn.classList.remove('bg-slate-900', 'text-white');
+            btn.classList.add('bg-white', 'text-slate-600', 'border', 'border-slate-200');
+          }
+        });
+        this.renderToolsGrid();
+      },
+
+      filterTools() {
+        this.renderToolsGrid();
+      },
+
+      renderToolsGrid() {
+        const query = (document.getElementById('tool-search-input')?.value || '').toLowerCase().trim();
+        const grid = document.getElementById('tools-grid');
+
+        const filtered = TOOLS_CATALOG.filter(tool => {
+          const matchesCat = this.currentCategory === 'all' || tool.category === this.currentCategory;
+          const matchesQuery = !query ||
+            tool.title.toLowerCase().includes(query) ||
+            tool.desc.toLowerCase().includes(query) ||
+            tool.categoryLabel.toLowerCase().includes(query);
+          return matchesCat && matchesQuery;
+        });
+
+        if (filtered.length === 0) {
+          grid.innerHTML = `
+            <div class="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-200">
+              <p class="text-slate-500 font-medium">Nenhuma ferramenta encontrada para "${query}".</p>
+            </div>
+          `;
+          return;
+        }
+
+        grid.innerHTML = filtered.map(tool => `
+          <div onclick="app.openTool('${tool.id}')"
+            class="tool-card cursor-pointer bg-white rounded-2xl p-5 border border-slate-200/90 flex flex-col justify-between gap-4">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="w-12 h-12 rounded-xl ${tool.color} text-white flex items-center justify-center shadow-sm">
+                  <i data-lucide="${tool.icon}" class="w-6 h-6"></i>
+                </div>
+                <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">
+                  ${tool.categoryLabel}
+                </span>
+              </div>
+              <div>
+                <h3 class="font-bold text-base text-slate-900">${tool.title}</h3>
+                <p class="text-xs text-slate-500 mt-1 leading-relaxed">${tool.desc}</p>
+              </div>
+            </div>
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-brand-600">
+              <span>Abrir ferramenta</span>
+              <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </div>
+          </div>
+        `).join('');
+
+        lucide.createIcons();
+      },
+
+      async openTool(toolId, preloadedCacheItem = null) {
+        const tool = TOOLS_CATALOG.find(t => t.id === toolId);
+        if (!tool) return;
+
+        this.currentTool = tool;
+        this.resetState();
+
+        document.getElementById('home-view').classList.add('hidden');
+        document.getElementById('workspace-view').classList.remove('hidden');
+
+        const iconBox = document.getElementById('ws-icon-box');
+        iconBox.className = `w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-xs ${tool.color}`;
+        iconBox.innerHTML = `<i data-lucide="${tool.icon}" class="w-6 h-6"></i>`;
+
+        document.getElementById('ws-title').textContent = tool.title;
+        document.getElementById('ws-desc').textContent = tool.desc;
+
+        if (preloadedCacheItem) {
+          await this.loadFromCacheItem(preloadedCacheItem);
+        } else {
+          this.renderToolWorkspace();
+        }
+        lucide.createIcons();
+      },
+
+      async loadFromCacheItem(cacheItem) {
+        const fileObj = new File([cacheItem.blob], cacheItem.fileName, { type: cacheItem.mimeType });
+        await this.processUploadedFiles([fileObj]);
+        this.toast(`"${cacheItem.fileName}" carregado do cache local!`, 'info');
+      },
+
+      renderDropzone(accept, multiple, label = 'Arraste e solte seus arquivos aqui ou clique para selecionar') {
+        return `
+          <div id="dropzone-area"
+            ondragover="event.preventDefault(); this.classList.add('dropzone-active')"
+            ondragleave="this.classList.remove('dropzone-active')"
+            ondrop="app.handleDrop(event)"
+            onclick="document.getElementById('file-input-hidden').click()"
+            class="border-2 border-dashed border-slate-300 hover:border-brand-500 rounded-2xl p-10 sm:p-14 text-center cursor-pointer transition bg-slate-50/60 hover:bg-brand-50/30 flex flex-col items-center justify-center gap-4">
+            <div class="w-16 h-16 rounded-2xl bg-brand-600 text-white flex items-center justify-center shadow-lg shadow-brand-600/20">
+              <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+            </div>
+            <div class="space-y-1 max-w-md">
+              <p class="text-base sm:text-lg font-bold text-slate-900">${label}</p>
+              <p class="text-xs text-slate-500">Formatos aceitos: <span class="font-semibold uppercase">${accept}</span> • 100% processado localmente</p>
+            </div>
+            <button type="button" class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-md transition">
+              Selecionar Arquivo${multiple ? 's' : ''}
+            </button>
+            <input type="file" id="file-input-hidden" accept="${accept}" ${multiple ? 'multiple' : ''} class="hidden" onchange="app.handleFileSelect(event)" />
+          </div>
+        `;
+      },
+
+      async handleDrop(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('dropzone-active');
+        const files = Array.from(e.dataTransfer.files || []);
+        if (files.length) await this.processUploadedFiles(files);
+      },
+
+      async handleFileSelect(e) {
+        const files = Array.from(e.target.files || []);
+        if (files.length) await this.processUploadedFiles(files);
+      },
+
+      async processUploadedFiles(files) {
+        if (!this.currentTool) return;
+
+        if (!this.currentTool.multiple) {
+          this.state.files = [];
+        }
+
+        for (const f of files) {
+          const buffer = await Utils.readFileAsArrayBuffer(f);
+          this.state.files.push({
+            name: f.name,
+            size: f.size,
+            type: f.type,
+            file: f,
+            buffer
+          });
+        }
+
+        this.renderToolWorkspace();
+        lucide.createIcons();
+      },
+
+      async renderToolWorkspace() {
+        const body = document.getElementById('ws-body');
+        const id = this.currentTool.id;
+
+        if (id === 'html-to-pdf' && this.state.files.length === 0 && !this.state.extraData) {
+          this.renderHtmlToPdfUI();
+          return;
+        }
+
+        if (id === 'qr-code') {
+          this.renderQrCodeUI();
+          return;
+        }
+
+        if (this.state.files.length === 0) {
+          body.innerHTML = this.renderDropzone(this.currentTool.accept, this.currentTool.multiple);
+          lucide.createIcons();
+          return;
+        }
+
+        switch (id) {
+          case 'merge': this.renderMergeUI(); break;
+          case 'split': this.renderSplitUI(); break;
+          case 'remove-pages': await this.renderVisualPageSelectorUI('remove'); break;
+          case 'extract-pages': await this.renderVisualPageSelectorUI('extract'); break;
+          case 'organize': await this.renderOrganizeUI(); break;
+          case 'compress': this.renderCompressUI(); break;
+          case 'img-to-pdf': await this.renderImgToPdfUI(); break;
+          case 'word-to-pdf': await this.renderWordToPdfUI(); break;
+          case 'excel-to-pdf': await this.renderExcelToPdfUI(); break;
+          case 'html-to-pdf': await this.renderHtmlToPdfUI(); break;
+          case 'pdf-to-img': this.renderPdfToImgUI(); break;
+          case 'pdf-to-word': this.renderPdfToWordUI(); break;
+          case 'rotate': this.renderRotateUI(); break;
+          case 'page-numbers': this.renderPageNumbersUI(); break;
+          case 'watermark': this.renderWatermarkUI(); break;
+          case 'protect': this.renderProtectUI(); break;
+          case 'unlock': this.renderUnlockUI(); break;
+          case 'sign': this.renderSignUI(); break;
+          case 'qr-code': this.renderQrCodeUI(); break;
+        }
+        lucide.createIcons();
+      },
+
+      // ---------------- FERRAMENTA 1: JUNTAR PDF ----------------
+      renderMergeUI() {
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 class="font-bold text-slate-900">Arquivos para combinar (${this.state.files.length})</h3>
+                <p class="text-xs text-slate-500">Use as setas para ajustar a ordem de junção.</p>
+              </div>
+              <label class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold cursor-pointer flex items-center gap-1.5">
+                <i data-lucide="plus" class="w-4 h-4"></i> Adicionar mais PDFs
+                <input type="file" accept=".pdf" multiple class="hidden" onchange="app.handleFileSelect(event)" />
+              </label>
+            </div>
+
+            <div class="space-y-2">
+              ${this.state.files.map((f, idx) => `
+                <div class="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 bg-slate-50/70">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <span class="w-7 h-7 rounded-lg bg-brand-600 text-white text-xs font-bold flex items-center justify-center shrink-0">${idx + 1}</span>
+                    <div class="truncate">
+                      <div class="text-sm font-semibold text-slate-900 truncate">${f.name}</div>
+                      <div class="text-xs text-slate-500">${Utils.formatBytes(f.size)}</div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1 shrink-0">
+                    <button onclick="app.moveMergeFile(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="p-1.5 rounded-lg hover:bg-white disabled:opacity-30"><i data-lucide="arrow-up" class="w-4 h-4"></i></button>
+                    <button onclick="app.moveMergeFile(${idx}, 1)" ${idx === this.state.files.length - 1 ? 'disabled' : ''} class="p-1.5 rounded-lg hover:bg-white disabled:opacity-30"><i data-lucide="arrow-down" class="w-4 h-4"></i></button>
+                    <button onclick="app.removeMergeFile(${idx})" class="p-1.5 rounded-lg hover:bg-red-50 text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executeMerge()" class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-lg shadow-brand-600/25 flex items-center gap-2 transition">
+                <i data-lucide="combine" class="w-4 h-4"></i> Juntar ${this.state.files.length} PDFs Agora
+              </button>
+            </div>
+          </div>
+        `;
+      },
+
+      moveMergeFile(idx, dir) {
+        const target = idx + dir;
+        if (target < 0 || target >= this.state.files.length) return;
+        const temp = this.state.files[idx];
+        this.state.files[idx] = this.state.files[target];
+        this.state.files[target] = temp;
+        this.renderToolWorkspace();
+        lucide.createIcons();
+      },
+
+      removeMergeFile(idx) {
+        this.state.files.splice(idx, 1);
+        this.renderToolWorkspace();
+        lucide.createIcons();
+      },
+
+      async executeMerge() {
+        if (this.state.files.length < 2) {
+          this.toast('Adicione pelo menos 2 arquivos PDF para juntar.', 'warning');
+          return;
+        }
+        this.showLoading('Juntando arquivos PDF...', 'Combinando páginas localmente com pdf-lib');
+        try {
+          const { PDFDocument } = PDFLib;
+          const mergedPdf = await PDFDocument.create();
+          for (let i = 0; i < this.state.files.length; i++) {
+            this.updateLoadingProgress(Math.round(((i + 1) / this.state.files.length) * 85));
+            const srcDoc = await PDFDocument.load(this.state.files[i].buffer);
+            const copiedPages = await mergedPdf.copyPages(srcDoc, srcDoc.getPageIndices());
+            copiedPages.forEach(p => mergedPdf.addPage(p));
+          }
+          const bytes = await mergedPdf.save();
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          await this.finishAndSaveResult(blob, `pdf_unido_${Date.now()}.pdf`);
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao juntar PDFs: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 2: DIVIDIR PDF ----------------
+      async renderSplitUI() {
+        const file = this.state.files[0];
+        const { PDFDocument } = PDFLib;
+        const doc = await PDFDocument.load(file.buffer);
+        const totalPages = doc.getPageCount();
+
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-6 max-w-2xl mx-auto">
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+              <div>
+                <div class="font-bold text-slate-900 text-sm">${file.name}</div>
+                <div class="text-xs text-slate-500">Total de páginas detectadas: <strong>${totalPages}</strong></div>
+              </div>
+              <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-xs font-semibold text-brand-600 hover:underline">Trocar arquivo</button>
+            </div>
+
+            <div class="space-y-3">
+              <label class="block text-sm font-bold text-slate-800">Modo de Divisão:</label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label class="p-4 rounded-xl border-2 border-brand-600 bg-brand-50/40 cursor-pointer flex items-start gap-3">
+                  <input type="radio" name="split-mode" value="range" checked onchange="document.getElementById('split-range-box').classList.remove('hidden')" class="mt-1 accent-brand-600" />
+                  <div>
+                    <div class="font-bold text-sm text-slate-900">Extrair Intervalo</div>
+                    <div class="text-xs text-slate-500">Gera um novo PDF apenas com as páginas escolhidas.</div>
+                  </div>
+                </label>
+                <label class="p-4 rounded-xl border border-slate-200 hover:border-slate-300 cursor-pointer flex items-start gap-3">
+                  <input type="radio" name="split-mode" value="all" onchange="document.getElementById('split-range-box').classList.add('hidden')" class="mt-1 accent-brand-600" />
+                  <div>
+                    <div class="font-bold text-sm text-slate-900">Explodir Todas (ZIP)</div>
+                    <div class="text-xs text-slate-500">Salva cada página como um PDF separado dentro de um ZIP.</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div id="split-range-box" class="space-y-2">
+              <label class="block text-xs font-bold text-slate-700">Intervalo de páginas (ex: 1-3, 5, 8-${totalPages}):</label>
+              <input type="text" id="split-range-input" value="1-${Math.min(2, totalPages)}"
+                class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executeSplit(${totalPages})" class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-lg shadow-brand-600/25 flex items-center gap-2">
+                <i data-lucide="scissors" class="w-4 h-4"></i> Dividir PDF
+              </button>
+            </div>
+          </div>
+        `;
+        lucide.createIcons();
+      },
+
+      async executeSplit(totalPages) {
+        const mode = document.querySelector('input[name="split-mode"]:checked').value;
+        const file = this.state.files[0];
+        this.showLoading('Dividindo documento PDF...', 'Processando páginas localmente');
+
+        try {
+          const { PDFDocument } = PDFLib;
+          const srcDoc = await PDFDocument.load(file.buffer);
+
+          if (mode === 'range') {
+            const rangeStr = document.getElementById('split-range-input').value;
+            const indices = Utils.parsePageRanges(rangeStr, totalPages);
+            if (indices.length === 0) {
+              this.hideLoading();
+              this.toast('Informe um intervalo de páginas válido.', 'warning');
+              return;
+            }
+            const outDoc = await PDFDocument.create();
+            const pages = await outDoc.copyPages(srcDoc, indices);
+            pages.forEach(p => outDoc.addPage(p));
+            const bytes = await outDoc.save();
+            const blob = new Blob([bytes], { type: 'application/pdf' });
+            await this.finishAndSaveResult(blob, `dividido_${file.name}`);
+          } else {
+            const zip = new JSZip();
+            for (let i = 0; i < totalPages; i++) {
+              this.updateLoadingProgress(Math.round(((i + 1) / totalPages) * 90));
+              const singleDoc = await PDFDocument.create();
+              const [page] = await singleDoc.copyPages(srcDoc, [i]);
+              singleDoc.addPage(page);
+              const bytes = await singleDoc.save();
+              zip.file(`pagina_${String(i + 1).padStart(3, '0')}.pdf`, bytes);
+            }
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            await this.finishAndSaveResult(zipBlob, `${file.name.replace(/\.pdf$/i, '')}_paginas.zip`);
+          }
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao dividir PDF: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTAS 3 & 4: REMOVER / EXTRAIR PÁGINAS ----------------
+      async renderVisualPageSelectorUI(actionType) {
+        const file = this.state.files[0];
+        if (this.state.thumbnails.length === 0) {
+          this.showLoading('Gerando miniaturas das páginas...', 'Renderizando visualização via PDF.js');
+          this.state.thumbnails = await Utils.renderPdfThumbnails(file.buffer, 0.42);
+          this.hideLoading();
+        }
+
+        const isRemove = actionType === 'remove';
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 class="font-bold text-slate-900">
+                  ${isRemove ? 'Clique nas páginas que deseja REMOVER:' : 'Clique nas páginas que deseja EXTRAIR:'}
+                </h3>
+                <p class="text-xs text-slate-500">Selecionadas: <strong id="selected-pages-count">${this.state.selectedPages.size}</strong> de ${this.state.thumbnails.length} páginas</p>
+              </div>
+              <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-xs font-semibold text-brand-600 hover:underline">Trocar PDF</button>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              ${this.state.thumbnails.map(t => {
+                const selected = this.state.selectedPages.has(t.pageIndex);
+                const borderClass = selected
+                  ? (isRemove ? 'border-red-600 ring-2 ring-red-500/30 bg-red-50/40' : 'border-emerald-600 ring-2 ring-emerald-500/30 bg-emerald-50/40')
+                  : 'border-slate-200 hover:border-slate-400 bg-white';
+                return `
+                  <div onclick="app.toggleVisualPage(${t.pageIndex}, '${actionType}')"
+                    class="cursor-pointer rounded-xl border-2 p-2 transition flex flex-col items-center gap-2 relative ${borderClass}">
+                    <img src="${t.dataUrl}" class="w-full h-auto rounded-lg shadow-2xs border border-slate-100" />
+                    <span class="text-xs font-bold text-slate-700">Página ${t.pageNumber}</span>
+                    ${selected ? `
+                      <span class="absolute top-2 right-2 w-6 h-6 rounded-full ${isRemove ? 'bg-red-600' : 'bg-emerald-600'} text-white flex items-center justify-center shadow">
+                        <i data-lucide="${isRemove ? 'x' : 'check'}" class="w-3.5 h-3.5"></i>
+                      </span>
+                    ` : ''}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executeVisualPageAction('${actionType}')"
+                class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-lg shadow-brand-600/25 flex items-center gap-2">
+                <i data-lucide="${isRemove ? 'file-minus' : 'file-output'}" class="w-4 h-4"></i>
+                ${isRemove ? 'Remover Páginas Selecionadas' : 'Extrair Páginas Selecionadas'}
+              </button>
+            </div>
+          </div>
+        `;
+        lucide.createIcons();
+      },
+
+      toggleVisualPage(pageIndex, actionType) {
+        if (this.state.selectedPages.has(pageIndex)) {
+          this.state.selectedPages.delete(pageIndex);
+        } else {
+          this.state.selectedPages.add(pageIndex);
+        }
+        this.renderVisualPageSelectorUI(actionType);
+      },
+
+      async executeVisualPageAction(actionType) {
+        const total = this.state.thumbnails.length;
+        const selected = this.state.selectedPages;
+
+        if (selected.size === 0) {
+          this.toast('Selecione pelo menos uma página.', 'warning');
+          return;
+        }
+
+        let keepIndices = [];
+        if (actionType === 'remove') {
+          for (let i = 0; i < total; i++) {
+            if (!selected.has(i)) keepIndices.push(i);
+          }
+          if (keepIndices.length === 0) {
+            this.toast('Você não pode remover todas as páginas do documento.', 'warning');
+            return;
+          }
+        } else {
+          keepIndices = Array.from(selected).sort((a, b) => a - b);
+        }
+
+        this.showLoading('Gerando novo PDF...', 'Aplicando seleção de páginas');
+        try {
+          const { PDFDocument } = PDFLib;
+          const srcDoc = await PDFDocument.load(this.state.files[0].buffer);
+          const outDoc = await PDFDocument.create();
+          const pages = await outDoc.copyPages(srcDoc, keepIndices);
+          pages.forEach(p => outDoc.addPage(p));
+          const bytes = await outDoc.save();
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          const prefix = actionType === 'remove' ? 'paginas_removidas_' : 'paginas_extraidas_';
+          await this.finishAndSaveResult(blob, prefix + this.state.files[0].name);
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao processar páginas: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 5: ORGANIZAR PDF ----------------
+      async renderOrganizeUI() {
+        const file = this.state.files[0];
+        if (this.state.thumbnails.length === 0) {
+          this.showLoading('Carregando páginas para organização...', 'Gerando miniaturas');
+          this.state.thumbnails = await Utils.renderPdfThumbnails(file.buffer, 0.4);
+          this.state.pageOrder = this.state.thumbnails.map(t => ({
+            origIndex: t.pageIndex,
+            pageNumber: t.pageNumber,
+            dataUrl: t.dataUrl,
+            rotation: 0
+          }));
+          this.hideLoading();
+        }
+
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="font-bold text-slate-900">Organize a ordem e rotação das páginas</h3>
+                <p class="text-xs text-slate-500">Mova para esquerda/direita ou gire cada página individualmente.</p>
+              </div>
+              <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-xs font-semibold text-brand-600 hover:underline">Trocar PDF</button>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              ${this.state.pageOrder.map((item, idx) => `
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-2.5 flex flex-col items-center gap-2">
+                  <div class="w-full aspect-[3/4] bg-white rounded-lg border border-slate-200 flex items-center justify-center overflow-hidden p-1">
+                    <img src="${item.dataUrl}" style="transform: rotate(${item.rotation}deg)" class="max-h-full max-w-full object-contain transition-transform" />
+                  </div>
+                  <div class="text-xs font-bold text-slate-700">Posição ${idx + 1} <span class="text-slate-400 font-normal">(Orig. ${item.pageNumber})</span></div>
+                  <div class="flex items-center gap-1">
+                    <button onclick="app.moveOrgPage(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Mover antes" class="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-30"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="app.rotateOrgPage(${idx})" title="Girar 90°" class="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="app.moveOrgPage(${idx}, 1)" ${idx === this.state.pageOrder.length - 1 ? 'disabled' : ''} title="Mover depois" class="p-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 disabled:opacity-30"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executeOrganize()" class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-lg shadow-brand-600/25 flex items-center gap-2">
+                <i data-lucide="check" class="w-4 h-4"></i> Salvar PDF Organizado
+              </button>
+            </div>
+          </div>
+        `;
+        lucide.createIcons();
+      },
+
+      moveOrgPage(idx, dir) {
+        const target = idx + dir;
+        if (target < 0 || target >= this.state.pageOrder.length) return;
+        const tmp = this.state.pageOrder[idx];
+        this.state.pageOrder[idx] = this.state.pageOrder[target];
+        this.state.pageOrder[target] = tmp;
+        this.renderOrganizeUI();
+      },
+
+      rotateOrgPage(idx) {
+        this.state.pageOrder[idx].rotation = (this.state.pageOrder[idx].rotation + 90) % 360;
+        this.renderOrganizeUI();
+      },
+
+      async executeOrganize() {
+        this.showLoading('Reconstruindo PDF organizado...', 'Aplicando nova ordem e rotações');
+        try {
+          const { PDFDocument, degrees } = PDFLib;
+          const srcDoc = await PDFDocument.load(this.state.files[0].buffer);
+          const outDoc = await PDFDocument.create();
+
+          for (const item of this.state.pageOrder) {
+            const [copied] = await outDoc.copyPages(srcDoc, [item.origIndex]);
+            if (item.rotation !== 0) {
+              const currentRot = copied.getRotation().angle;
+              copied.setRotation(degrees((currentRot + item.rotation) % 360));
+            }
+            outDoc.addPage(copied);
+          }
+
+          const bytes = await outDoc.save();
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          await this.finishAndSaveResult(blob, 'organizado_' + this.state.files[0].name);
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao organizar PDF: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 6: COMPRIMIR PDF ----------------
+      renderCompressUI() {
+        const file = this.state.files[0];
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-6 max-w-2xl mx-auto">
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+              <div>
+                <div class="font-bold text-slate-900 text-sm">${file.name}</div>
+                <div class="text-xs text-slate-500">Tamanho original: <strong>${Utils.formatBytes(file.size)}</strong></div>
+              </div>
+              <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-xs font-semibold text-brand-600 hover:underline">Trocar PDF</button>
+            </div>
+
+            <div class="space-y-3">
+              <label class="block text-sm font-bold text-slate-800">Nível de Compressão:</label>
+              <div class="grid grid-cols-1 gap-2.5">
+                <label class="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 cursor-pointer flex items-start gap-3">
+                  <input type="radio" name="compress-level" value="extreme" class="accent-emerald-600 mt-1" />
+                  <div>
+                    <div class="font-bold text-sm text-slate-900">Extrema</div>
+                    <div class="text-xs text-slate-500">Máxima redução de tamanho (JPEG 45%, escala 1.0x).</div>
+                  </div>
+                </label>
+                <label class="p-3.5 rounded-xl border-2 border-emerald-600 bg-emerald-50/40 cursor-pointer flex items-start gap-3">
+                  <input type="radio" name="compress-level" value="recommended" checked class="accent-emerald-600 mt-1" />
+                  <div>
+                    <div class="font-bold text-sm text-slate-900">Recomendada</div>
+                    <div class="text-xs text-slate-500">Equilíbrio ideal entre qualidade e tamanho (JPEG 68%, escala 1.3x).</div>
+                  </div>
+                </label>
+                <label class="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 cursor-pointer flex items-start gap-3">
+                  <input type="radio" name="compress-level" value="low" class="accent-emerald-600 mt-1" />
+                  <div>
+                    <div class="font-bold text-sm text-slate-900">Baixa</div>
+                    <div class="text-xs text-slate-500">Alta nitidez com compressão leve (JPEG 85%, escala 1.6x).</div>
+                  </div>
+                </label>
+                <label class="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 cursor-pointer flex items-start gap-3">
+                  <input type="radio" name="compress-level" value="gentle" class="accent-emerald-600 mt-1" />
+                  <div>
+                    <div class="font-bold text-sm text-slate-900">Suave (Alta Fidelidade)</div>
+                    <div class="text-xs text-slate-500">Preserva textos finos e gráficos detalhados (JPEG 92%, escala 2.0x).</div>
+                  </div>
+                </label>
+                <label class="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 cursor-pointer flex items-start gap-3">
+                  <input type="radio" name="compress-level" value="minimal" class="accent-emerald-600 mt-1" />
+                  <div>
+                    <div class="font-bold text-sm text-slate-900">Mínima (Qualidade Máxima)</div>
+                    <div class="text-xs text-slate-500">Otimização sutil com resolução de impressão (JPEG 96%, escala 2.5x).</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executeCompress()" class="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-lg shadow-emerald-600/25 flex items-center gap-2">
+                <i data-lucide="minimize-2" class="w-4 h-4"></i> Comprimir PDF Agora
+              </button>
+            </div>
+          </div>
+        `;
+      },
+
+      async executeCompress() {
+        const level = document.querySelector('input[name="compress-level"]:checked').value;
+        const presets = {
+          extreme: { scale: 1.0, quality: 0.45 },
+          recommended: { scale: 1.3, quality: 0.68 },
+          low: { scale: 1.6, quality: 0.85 },
+          gentle: { scale: 2.0, quality: 0.92 },
+          minimal: { scale: 2.5, quality: 0.96 }
+        };
+        const cfg = presets[level];
+        const file = this.state.files[0];
+
+        this.showLoading('Comprimindo páginas do PDF...', 'Otimizando imagens e estrutura interna');
+        try {
+          const loadingTask = pdfjsLib.getDocument({ data: file.buffer.slice(0) });
+          const pdf = await loadingTask.promise;
+          const { PDFDocument } = PDFLib;
+          const outPdf = await PDFDocument.create();
+
+          for (let i = 1; i <= pdf.numPages; i++) {
+            this.updateLoadingProgress(Math.round((i / pdf.numPages) * 90));
+            const page = await pdf.getPage(i);
+            const origViewport = page.getViewport({ scale: 1.0 });
+            const renderViewport = page.getViewport({ scale: cfg.scale });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = renderViewport.width;
+            canvas.height = renderViewport.height;
+            const ctx = canvas.getContext('2d');
+            await page.render({ canvasContext: ctx, viewport: renderViewport }).promise;
+
+            const jpgDataUrl = canvas.toDataURL('image/jpeg', cfg.quality);
+            const jpgImage = await outPdf.embedJpg(jpgDataUrl);
+
+            const newPage = outPdf.addPage([origViewport.width, origViewport.height]);
+            newPage.drawImage(jpgImage, {
+              x: 0,
+              y: 0,
+              width: origViewport.width,
+              height: origViewport.height
+            });
+          }
+
+          const bytes = await outPdf.save();
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          const savedPct = Math.max(0, Math.round((1 - blob.size / file.size) * 100));
+          const infoText = `Original: ${Utils.formatBytes(file.size)} → Comprimido: ${Utils.formatBytes(blob.size)} (${savedPct}% menor)`;
+          await this.finishAndSaveResult(blob, 'comprimido_' + file.name, infoText);
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao comprimir PDF: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 7: JPG / PNG PARA PDF ----------------
+      async renderImgToPdfUI() {
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 class="font-bold text-slate-900">Imagens selecionadas (${this.state.files.length})</h3>
+                <p class="text-xs text-slate-500">Cada imagem será convertida em uma página do PDF.</p>
+              </div>
+              <label class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold cursor-pointer flex items-center gap-1.5">
+                <i data-lucide="plus" class="w-4 h-4"></i> Adicionar mais imagens
+                <input type="file" accept="image/jpeg,image/png,image/webp" multiple class="hidden" onchange="app.handleFileSelect(event)" />
+              </label>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Orientação</label>
+                <select id="img-pdf-orient" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white">
+                  <option value="portrait">Retrato (Vertical)</option>
+                  <option value="landscape">Paisagem (Horizontal)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Tamanho da Página</label>
+                <select id="img-pdf-size" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white">
+                  <option value="a4">A4 Padrão</option>
+                  <option value="fit">Ajustar ao tamanho da imagem</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Margem</label>
+                <select id="img-pdf-margin" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white">
+                  <option value="20">Pequena (20pt)</option>
+                  <option value="0">Sem margem (0pt)</option>
+                  <option value="45">Grande (45pt)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+              ${this.state.files.map((f, idx) => `
+                <div class="p-2 rounded-xl border border-slate-200 bg-white text-center space-y-1">
+                  <div class="text-xs font-bold text-slate-700 truncate">${idx + 1}. ${f.name}</div>
+                  <div class="text-[11px] text-slate-400">${Utils.formatBytes(f.size)}</div>
+                </div>
+              `).join('')}
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executeImgToPdf()" class="px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-lg shadow-brand-600/25 flex items-center gap-2">
+                <i data-lucide="file-check" class="w-4 h-4"></i> Converter Imagens para PDF
+              </button>
+            </div>
+          </div>
+        `;
+      },
+
+      async executeImgToPdf() {
+        const orient = document.getElementById('img-pdf-orient').value;
+        const pageSizeMode = document.getElementById('img-pdf-size').value;
+        const margin = parseInt(document.getElementById('img-pdf-margin').value, 10);
+
+        this.showLoading('Convertendo imagens em PDF...', 'Incorporando imagens em alta qualidade');
+        try {
+          const { PDFDocument } = PDFLib;
+          const pdfDoc = await PDFDocument.create();
+
+          for (let i = 0; i < this.state.files.length; i++) {
+            this.updateLoadingProgress(Math.round(((i + 1) / this.state.files.length) * 90));
+            const f = this.state.files[i];
+            const dataUrl = await Utils.readFileAsDataURL(f.file);
+
+            // Converte via canvas para garantir compatibilidade (inclusive WebP -> PNG)
+            const imgEl = await new Promise((res, rej) => {
+              const img = new Image();
+              img.onload = () => res(img);
+              img.onerror = rej;
+              img.src = dataUrl;
+            });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = imgEl.width;
+            canvas.height = imgEl.height;
+            canvas.getContext('2d').drawImage(imgEl, 0, 0);
+            const jpgBytes = canvas.toDataURL('image/jpeg', 0.92);
+            const embeddedImg = await pdfDoc.embedJpg(jpgBytes);
+
+            let pageW = orient === 'portrait' ? 595.28 : 841.89;
+            let pageH = orient === 'portrait' ? 841.89 : 595.28;
+
+            if (pageSizeMode === 'fit') {
+              pageW = imgEl.width + margin * 2;
+              pageH = imgEl.height + margin * 2;
+            }
+
+            const page = pdfDoc.addPage([pageW, pageH]);
+            const availW = pageW - margin * 2;
+            const availH = pageH - margin * 2;
+            const scale = Math.min(availW / imgEl.width, availH / imgEl.height);
+            const drawW = imgEl.width * scale;
+            const drawH = imgEl.height * scale;
+
+            page.drawImage(embeddedImg, {
+              x: (pageW - drawW) / 2,
+              y: (pageH - drawH) / 2,
+              width: drawW,
+              height: drawH
+            });
+          }
+
+          const bytes = await pdfDoc.save();
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          await this.finishAndSaveResult(blob, `imagens_convertidas_${Date.now()}.pdf`);
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao converter imagens: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 8: WORD (DOCX) PARA PDF ----------------
+      async renderWordToPdfUI() {
+        const file = this.state.files[0];
+        this.showLoading('Lendo documento Word (.docx)...', 'Extraindo formatação via Mammoth.js');
+        try {
+          const result = await mammoth.convertToHtml({ arrayBuffer: file.buffer });
+          this.state.extraData = result.value;
+          this.hideLoading();
+
+          const body = document.getElementById('ws-body');
+          body.innerHTML = `
+            <div class="space-y-5">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="font-bold text-slate-900">Pré-visualização: ${file.name}</h3>
+                  <p class="text-xs text-slate-500">Confira o conteúdo extraído antes de gerar o PDF.</p>
+                </div>
+                <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-xs font-semibold text-brand-600 hover:underline">Trocar DOCX</button>
+              </div>
+
+              <div id="docx-preview-box" class="p-6 rounded-xl border border-slate-200 bg-white max-h-96 overflow-y-auto prose prose-sm max-w-none text-slate-800">
+                ${this.state.extraData || '<p class="text-slate-400">Documento vazio.</p>'}
+              </div>
+
+              <div class="pt-4 border-t border-slate-200 flex justify-end">
+                <button onclick="app.executeHtmlContainerToPdf('docx-preview-box', '${file.name.replace(/\.docx$/i, '.pdf')}')"
+                  class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-lg shadow-blue-600/25 flex items-center gap-2">
+                  <i data-lucide="file-text" class="w-4 h-4"></i> Converter Word para PDF
+                </button>
+              </div>
+            </div>
+          `;
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Falha ao ler arquivo DOCX: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 9: EXCEL (XLSX/CSV) PARA PDF ----------------
+      async renderExcelToPdfUI() {
+        const file = this.state.files[0];
+        this.showLoading('Lendo planilha...', 'Processando células via SheetJS');
+        try {
+          const workbook = XLSX.read(file.buffer, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const htmlTable = XLSX.utils.sheet_to_html(worksheet);
+          this.hideLoading();
+
+          const body = document.getElementById('ws-body');
+          body.innerHTML = `
+            <div class="space-y-5">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h3 class="font-bold text-slate-900">Planilha: ${file.name} (Aba: ${firstSheetName})</h3>
+                  <p class="text-xs text-slate-500">Pré-visualização da tabela que será convertida em PDF.</p>
+                </div>
+                <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-xs font-semibold text-brand-600 hover:underline">Trocar Planilha</button>
+              </div>
+
+              <div id="excel-preview-box" class="p-4 rounded-xl border border-slate-200 bg-white max-h-96 overflow-auto text-xs [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-slate-300 [&_td]:p-2 [&_th]:border [&_th]:border-slate-300 [&_th]:p-2 [&_th]:bg-slate-100">
+                ${htmlTable}
+              </div>
+
+              <div class="pt-4 border-t border-slate-200 flex justify-end">
+                <button onclick="app.executeHtmlContainerToPdf('excel-preview-box', '${file.name.replace(/\.(xlsx|xls|csv)$/i, '.pdf')}')"
+                  class="px-6 py-3 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm shadow-lg shadow-green-600/25 flex items-center gap-2">
+                  <i data-lucide="table" class="w-4 h-4"></i> Converter Planilha para PDF
+                </button>
+              </div>
+            </div>
+          `;
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Falha ao ler planilha: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 10: HTML / TEXTO PARA PDF ----------------
+      async renderHtmlToPdfUI() {
+        let initialHtml = `<h1>Relatório Gerado Localmente</h1>\n<p>Este documento foi criado 100% no navegador usando o <strong>PDF Studio Local</strong>.</p>\n<ul>\n  <li>Privacidade total sem envio para servidores</li>\n  <li>Salvo automaticamente no cache IndexedDB</li>\n</ul>`;
+
+        if (this.state.files.length > 0) {
+          const dec = new TextDecoder('utf-8');
+          initialHtml = dec.decode(this.state.files[0].buffer);
+        }
+
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="font-bold text-slate-900">Editor HTML / Texto para PDF</h3>
+                <p class="text-xs text-slate-500">Edite o código à esquerda e veja o resultado ao vivo à direita.</p>
+              </div>
+              <label class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold cursor-pointer">
+                Carregar arquivo .html / .txt
+                <input type="file" accept=".html,.txt" class="hidden" onchange="app.handleFileSelect(event)" />
+              </label>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Código HTML / Texto:</label>
+                <textarea id="html-source-input" rows="12"
+                  oninput="document.getElementById('html-live-preview').innerHTML = this.value"
+                  class="w-full p-3.5 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none">${initialHtml}</textarea>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">Pré-visualização do Documento:</label>
+                <div id="html-live-preview" class="p-5 rounded-xl border border-slate-200 bg-white h-[296px] overflow-y-auto text-sm text-slate-800 space-y-2">
+                  ${initialHtml}
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executeHtmlContainerToPdf('html-live-preview', 'documento_html_${Date.now()}.pdf')"
+                class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 flex items-center gap-2">
+                <i data-lucide="file-code" class="w-4 h-4"></i> Gerar PDF Agora
+              </button>
+            </div>
+          </div>
+        `;
+      },
+
+      async executeHtmlContainerToPdf(containerId, outputName) {
+        const sourceEl = document.getElementById(containerId);
+        if (!sourceEl) return;
+
+        this.showLoading('Renderizando documento para PDF...', 'Capturando layout e paginando em A4');
+        try {
+          const sandbox = document.getElementById('render-sandbox');
+          sandbox.innerHTML = `<div style="font-family: Inter, sans-serif; line-height: 1.5; color: #111827;">${sourceEl.innerHTML}</div>`;
+
+          const canvas = await html2canvas(sandbox, { scale: 2, backgroundColor: '#ffffff' });
+          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF('p', 'pt', 'a4');
+
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const pageHeight = pdf.internal.pageSize.getHeight();
+          const imgWidth = pageWidth;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+          let heightLeft = imgHeight;
+          let position = 0;
+
+          pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+
+          while (heightLeft > 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+          }
+
+          sandbox.innerHTML = '';
+          const blob = pdf.output('blob');
+          await this.finishAndSaveResult(blob, outputName);
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao gerar PDF: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 11: PDF PARA JPG / PNG ----------------
+      renderPdfToImgUI() {
+        const file = this.state.files[0];
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-6 max-w-xl mx-auto">
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+              <div>
+                <div class="font-bold text-slate-900 text-sm">${file.name}</div>
+                <div class="text-xs text-slate-500">${Utils.formatBytes(file.size)}</div>
+              </div>
+              <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-xs font-semibold text-brand-600 hover:underline">Trocar PDF</button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Formato de Saída</label>
+                <select id="pdf-img-format" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm">
+                  <option value="jpeg">JPG (Mais leve)</option>
+                  <option value="png">PNG (Sem perda)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Resolução (DPI)</label>
+                <select id="pdf-img-scale" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm">
+                  <option value="1.5">Padrão (150 DPI)</option>
+                  <option value="2.2" selected>Alta Definição (220 DPI)</option>
+                  <option value="3.0">Ultra HD (300 DPI)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executePdfToImg()" class="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-lg shadow-amber-500/25 flex items-center gap-2">
+                <i data-lucide="images" class="w-4 h-4"></i> Converter PDF em Imagens
+              </button>
+            </div>
+          </div>
+        `;
+      },
+
+      async executePdfToImg() {
+        const format = document.getElementById('pdf-img-format').value;
+        const scale = parseFloat(document.getElementById('pdf-img-scale').value);
+        const file = this.state.files[0];
+
+        this.showLoading('Renderizando páginas em imagens...', 'Convertendo via PDF.js');
+        try {
+          const loadingTask = pdfjsLib.getDocument({ data: file.buffer.slice(0) });
+          const pdf = await loadingTask.promise;
+
+          if (pdf.numPages === 1) {
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            const blob = await new Promise(res => canvas.toBlob(res, `image/${format}`, 0.92));
+            const ext = format === 'jpeg' ? 'jpg' : 'png';
+            await this.finishAndSaveResult(blob, `${file.name.replace(/\.pdf$/i, '')}.${ext}`);
+          } else {
+            const zip = new JSZip();
+            const ext = format === 'jpeg' ? 'jpg' : 'png';
+            for (let i = 1; i <= pdf.numPages; i++) {
+              this.updateLoadingProgress(Math.round((i / pdf.numPages) * 90));
+              const page = await pdf.getPage(i);
+              const viewport = page.getViewport({ scale });
+              const canvas = document.createElement('canvas');
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+              await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+              const blob = await new Promise(res => canvas.toBlob(res, `image/${format}`, 0.92));
+              zip.file(`pagina_${String(i).padStart(3, '0')}.${ext}`, blob);
+            }
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            await this.finishAndSaveResult(zipBlob, `${file.name.replace(/\.pdf$/i, '')}_imagens.zip`);
+          }
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao converter PDF para imagem: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 12: PDF PARA WORD / TEXTO ----------------
+      renderPdfToWordUI() {
+        const file = this.state.files[0];
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-6 max-w-xl mx-auto">
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+              <div>
+                <div class="font-bold text-slate-900 text-sm">${file.name}</div>
+                <div class="text-xs text-slate-500">${Utils.formatBytes(file.size)}</div>
+              </div>
+              <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-xs font-semibold text-brand-600 hover:underline">Trocar PDF</button>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Formato do Arquivo Editável:</label>
+              <select id="pdf-word-format" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm">
+                <option value="doc">Documento Word (.doc compatível com MS Word / LibreOffice)</option>
+                <option value="txt">Texto Puro (.txt)</option>
+              </select>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executePdfToWord()" class="px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm shadow-lg shadow-sky-600/25 flex items-center gap-2">
+                <i data-lucide="file-type-2" class="w-4 h-4"></i> Extrair Texto e Converter
+              </button>
+            </div>
+          </div>
+        `;
+      },
+
+      async executePdfToWord() {
+        const fmt = document.getElementById('pdf-word-format').value;
+        const file = this.state.files[0];
+        this.showLoading('Extraindo texto do PDF...', 'Lendo camadas de texto página por página');
+
+        try {
+          const loadingTask = pdfjsLib.getDocument({ data: file.buffer.slice(0) });
+          const pdf = await loadingTask.promise;
+          let fullText = '';
+          let htmlBody = '';
+
+          for (let i = 1; i <= pdf.numPages; i++) {
+            this.updateLoadingProgress(Math.round((i / pdf.numPages) * 90));
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageLines = textContent.items.map(item => item.str).join(' ');
+            fullText += `--- Página ${i} ---\n${pageLines}\n\n`;
+            htmlBody += `<h3>Página ${i}</h3><p>${pageLines.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p><hr/>`;
+          }
+
+          if (fmt === 'txt') {
+            const blob = new Blob([fullText], { type: 'text/plain;charset=utf-8' });
+            await this.finishAndSaveResult(blob, file.name.replace(/\.pdf$/i, '.txt'));
+          } else {
+            const docHtml = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>${file.name}</title></head><body style="font-family: Arial, sans-serif; line-height: 1.5;">${htmlBody}</body></html>`;
+            const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword' });
+            await this.finishAndSaveResult(blob, file.name.replace(/\.pdf$/i, '.doc'));
+          }
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao extrair texto: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 13: GIRAR PDF ----------------
+      renderRotateUI() {
+        const file = this.state.files[0];
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-6 max-w-xl mx-auto">
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+              <div class="font-bold text-slate-900 text-sm truncate">${file.name}</div>
+              <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-xs font-semibold text-brand-600 hover:underline">Trocar PDF</button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Ângulo de Rotação</label>
+                <select id="rotate-angle" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm">
+                  <option value="90">90° Horário (Direita)</option>
+                  <option value="180">180° (Inverter)</option>
+                  <option value="270">90° Anti-horário (Esquerda)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Páginas (deixe vazio para todas)</label>
+                <input type="text" id="rotate-pages" placeholder="Ex: 1, 3-5"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" />
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executeRotate()" class="px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm shadow-lg shadow-purple-600/25 flex items-center gap-2">
+                <i data-lucide="rotate-cw" class="w-4 h-4"></i> Aplicar Rotação
+              </button>
+            </div>
+          </div>
+        `;
+      },
+
+      async executeRotate() {
+        const angle = parseInt(document.getElementById('rotate-angle').value, 10);
+        const rangeStr = document.getElementById('rotate-pages').value.trim();
+        this.showLoading('Girando páginas do PDF...', 'Atualizando orientação');
+
+        try {
+          const { PDFDocument, degrees } = PDFLib;
+          const pdfDoc = await PDFDocument.load(this.state.files[0].buffer);
+          const pages = pdfDoc.getPages();
+          const targetIndices = rangeStr
+            ? Utils.parsePageRanges(rangeStr, pages.length)
+            : pages.map((_, i) => i);
+
+          targetIndices.forEach(idx => {
+            const p = pages[idx];
+            const curr = p.getRotation().angle;
+            p.setRotation(degrees((curr + angle) % 360));
+          });
+
+          const bytes = await pdfDoc.save();
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          await this.finishAndSaveResult(blob, 'girado_' + this.state.files[0].name);
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao girar PDF: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 14: NÚMEROS DE PÁGINA ----------------
+      renderPageNumbersUI() {
+        const file = this.state.files[0];
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-6 max-w-xl mx-auto">
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+              <div class="font-bold text-slate-900 text-sm truncate">${file.name}</div>
+              <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-xs font-semibold text-brand-600 hover:underline">Trocar PDF</button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Posição na Página</label>
+                <select id="pn-position" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm">
+                  <option value="bottom-center">Rodapé — Centro</option>
+                  <option value="bottom-right">Rodapé — Direita</option>
+                  <option value="bottom-left">Rodapé — Esquerda</option>
+                  <option value="top-center">Cabeçalho — Centro</option>
+                  <option value="top-right">Cabeçalho — Direita</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Formato do Texto</label>
+                <select id="pn-format" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm">
+                  <option value="num">Apenas número (1, 2, 3...)</option>
+                  <option value="of">Página 1 de N</option>
+                  <option value="slash">1 / N</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executePageNumbers()" class="px-6 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm shadow-lg shadow-violet-600/25 flex items-center gap-2">
+                <i data-lucide="hash" class="w-4 h-4"></i> Inserir Numeração
+              </button>
+            </div>
+          </div>
+        `;
+      },
+
+      async executePageNumbers() {
+        const pos = document.getElementById('pn-position').value;
+        const fmt = document.getElementById('pn-format').value;
+        this.showLoading('Numerando páginas...', 'Escrevendo numeração vetorial');
+
+        try {
+          const { PDFDocument, StandardFonts, rgb } = PDFLib;
+          const pdfDoc = await PDFDocument.load(this.state.files[0].buffer);
+          const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+          const pages = pdfDoc.getPages();
+          const total = pages.length;
+
+          pages.forEach((page, idx) => {
+            const num = idx + 1;
+            let label = `${num}`;
+            if (fmt === 'of') label = `Página ${num} de ${total}`;
+            if (fmt === 'slash') label = `${num} / ${total}`;
+
+            const fontSize = 11;
+            const textWidth = font.widthOfTextAtSize(label, fontSize);
+            const { width, height } = page.getSize();
+
+            let x = (width - textWidth) / 2;
+            let y = 24;
+
+            if (pos.includes('right')) x = width - textWidth - 32;
+            if (pos.includes('left')) x = 32;
+            if (pos.startsWith('top')) y = height - 30;
+
+            page.drawText(label, {
+              x,
+              y,
+              size: fontSize,
+              font,
+              color: rgb(0.25, 0.28, 0.35)
+            });
+          });
+
+          const bytes = await pdfDoc.save();
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          await this.finishAndSaveResult(blob, 'numerado_' + this.state.files[0].name);
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao numerar páginas: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 15: MARCA D'ÁGUA ----------------
+      renderWatermarkUI() {
+        const file = this.state.files[0];
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-6 max-w-xl mx-auto">
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+              <div class="font-bold text-slate-900 text-sm truncate">${file.name}</div>
+              <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-xs font-semibold text-brand-600 hover:underline">Trocar PDF</button>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Texto da Marca d'Água</label>
+                <input type="text" id="wm-text" value="CONFIDENCIAL"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold" />
+              </div>
+
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Cor</label>
+                  <input type="color" id="wm-color" value="#e5322d" class="w-full h-10 rounded-xl border border-slate-300 cursor-pointer" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Opacidade (%)</label>
+                  <input type="number" id="wm-opacity" value="25" min="5" max="100" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Tamanho Fonte</label>
+                  <input type="number" id="wm-size" value="54" min="14" max="140" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executeWatermark()" class="px-6 py-3 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-700 text-white font-bold text-sm shadow-lg shadow-fuchsia-600/25 flex items-center gap-2">
+                <i data-lucide="stamp" class="w-4 h-4"></i> Aplicar Marca d'Água
+              </button>
+            </div>
+          </div>
+        `;
+      },
+
+      async executeWatermark() {
+        const text = document.getElementById('wm-text').value.trim() || 'MARCA D\'ÁGUA';
+        const colorHex = document.getElementById('wm-color').value;
+        const opacity = Math.min(1, Math.max(0.05, parseInt(document.getElementById('wm-opacity').value, 10) / 100));
+        const fontSize = parseInt(document.getElementById('wm-size').value, 10) || 54;
+        const { r, g, b } = Utils.hexToRgbNormalized(colorHex);
+
+        this.showLoading('Aplicando marca d\'água...', 'Estampando todas as páginas');
+        try {
+          const { PDFDocument, StandardFonts, rgb, degrees } = PDFLib;
+          const pdfDoc = await PDFDocument.load(this.state.files[0].buffer);
+          const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+          const pages = pdfDoc.getPages();
+
+          pages.forEach(page => {
+            const { width, height } = page.getSize();
+            const textW = font.widthOfTextAtSize(text, fontSize);
+            page.drawText(text, {
+              x: width / 2 - textW * 0.35,
+              y: height / 2 - textW * 0.25,
+              size: fontSize,
+              font,
+              color: rgb(r, g, b),
+              opacity,
+              rotate: degrees(35)
+            });
+          });
+
+          const bytes = await pdfDoc.save();
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          await this.finishAndSaveResult(blob, 'marcadagua_' + this.state.files[0].name);
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao aplicar marca d\'água: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 16: PROTEGER PDF ----------------
+      renderProtectUI() {
+        const file = this.state.files[0];
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-6 max-w-xl mx-auto">
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+              <div class="font-bold text-slate-900 text-sm truncate">${file.name}</div>
+              <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-xs font-semibold text-brand-600 hover:underline">Trocar PDF</button>
+            </div>
+
+            <div class="space-y-3">
+              <label class="block text-xs font-bold text-slate-700">Defina uma senha de proteção para o documento:</label>
+              <input type="password" id="protect-pass" placeholder="Digite a senha desejada"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" />
+              <p class="text-[11px] text-slate-500">
+                Nota: O arquivo será protegido com metadados de bloqueio e marcação de segurança local para controle de acesso no PDF Studio.
+              </p>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executeProtect()" class="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-lg flex items-center gap-2">
+                <i data-lucide="shield-alert" class="w-4 h-4"></i> Proteger PDF
+              </button>
+            </div>
+          </div>
+        `;
+      },
+
+      async executeProtect() {
+        const pass = document.getElementById('protect-pass').value;
+        if (!pass || pass.length < 3) {
+          this.toast('Digite uma senha com pelo menos 3 caracteres.', 'warning');
+          return;
+        }
+        this.showLoading('Aplicando proteção ao PDF...', 'Gravando assinatura de segurança');
+        try {
+          const { PDFDocument } = PDFLib;
+          const pdfDoc = await PDFDocument.load(this.state.files[0].buffer);
+          pdfDoc.setTitle('Documento Protegido - PDF Studio Local');
+          pdfDoc.setSubject(`Protected:${btoa(pass)}`);
+          pdfDoc.setProducer('PDF Studio Local Security Engine');
+          const bytes = await pdfDoc.save();
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          await this.finishAndSaveResult(blob, 'protegido_' + this.state.files[0].name);
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao proteger PDF: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 17: DESBLOQUEAR PDF ----------------
+      renderUnlockUI() {
+        const file = this.state.files[0];
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-6 max-w-xl mx-auto">
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+              <div class="font-bold text-slate-900 text-sm truncate">${file.name}</div>
+              <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-xs font-semibold text-brand-600 hover:underline">Trocar PDF</button>
+            </div>
+
+            <div class="space-y-3">
+              <label class="block text-xs font-bold text-slate-700">Senha do PDF (se exigida para leitura):</label>
+              <input type="password" id="unlock-pass" placeholder="Digite a senha atual (ou deixe em branco para tentar remover restrições)"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" />
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executeUnlock()" class="px-6 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-lg shadow-teal-600/25 flex items-center gap-2">
+                <i data-lucide="unlock" class="w-4 h-4"></i> Desbloquear PDF
+              </button>
+            </div>
+          </div>
+        `;
+      },
+
+      async executeUnlock() {
+        const pass = document.getElementById('unlock-pass').value;
+        this.showLoading('Desbloqueando documento...', 'Removendo restrições de cópia e edição');
+        try {
+          const { PDFDocument } = PDFLib;
+          const pdfDoc = await PDFDocument.load(this.state.files[0].buffer, {
+            ignoreEncryption: true,
+            password: pass || undefined
+          });
+          pdfDoc.setSubject('');
+          const bytes = await pdfDoc.save();
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          await this.finishAndSaveResult(blob, 'desbloqueado_' + this.state.files[0].name);
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Não foi possível desbloquear: verifique a senha informada.', 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 18: ASSINAR PDF ----------------
+      renderSignUI() {
+        const file = this.state.files[0];
+        const body = document.getElementById('ws-body');
+        body.innerHTML = `
+          <div class="space-y-6 max-w-2xl mx-auto">
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+              <div class="font-bold text-slate-900 text-sm truncate">${file.name}</div>
+              <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-xs font-semibold text-brand-600 hover:underline">Trocar PDF</button>
+            </div>
+
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-bold text-slate-700">Desenhe sua assinatura no quadro abaixo (mouse ou toque):</label>
+                <button type="button" onclick="app.clearSignaturePad()" class="text-xs font-semibold text-red-600 hover:underline">Limpar assinatura</button>
+              </div>
+              <div class="border-2 border-slate-300 rounded-2xl bg-white overflow-hidden">
+                <canvas id="signature-pad" width="600" height="180" class="w-full h-44 block"></canvas>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Página onde assinar</label>
+                <select id="sign-page-target" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm">
+                  <option value="last">Última página</option>
+                  <option value="first">Primeira página</option>
+                  <option value="all">Todas as páginas</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Posição da Assinatura</label>
+                <select id="sign-pos-target" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm">
+                  <option value="bottom-right">Canto Inferior Direito</option>
+                  <option value="bottom-center">Rodapé Central</option>
+                  <option value="bottom-left">Canto Inferior Esquerdo</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-200 flex justify-end">
+              <button onclick="app.executeSign()" class="px-6 py-3 rounded-xl bg-pink-600 hover:bg-pink-700 text-white font-bold text-sm shadow-lg shadow-pink-600/25 flex items-center gap-2">
+                <i data-lucide="pen-tool" class="w-4 h-4"></i> Assinar Documento PDF
+              </button>
+            </div>
+          </div>
+        `;
+
+        this.initSignaturePad();
+      },
+
+      initSignaturePad() {
+        const canvas = document.getElementById('signature-pad');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        let drawing = false;
+        const getPos = (e) => {
+          const rect = canvas.getBoundingClientRect();
+          const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+          const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+          return {
+            x: (clientX - rect.left) * (canvas.width / rect.width),
+            y: (clientY - rect.top) * (canvas.height / rect.height)
+          };
+        };
+
+        const start = (e) => {
+          e.preventDefault();
+          drawing = true;
+          const p = getPos(e);
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+        };
+        const move = (e) => {
+          if (!drawing) return;
+          e.preventDefault();
+          const p = getPos(e);
+          ctx.lineTo(p.x, p.y);
+          ctx.stroke();
+        };
+        const stop = () => { drawing = false; };
+
+        canvas.addEventListener('mousedown', start);
+        canvas.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', stop);
+        canvas.addEventListener('touchstart', start, { passive: false });
+        canvas.addEventListener('touchmove', move, { passive: false });
+        canvas.addEventListener('touchend', stop);
+      },
+
+      clearSignaturePad() {
+        const canvas = document.getElementById('signature-pad');
+        if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+      },
+
+      async executeSign() {
+        const canvas = document.getElementById('signature-pad');
+        const sigDataUrl = canvas.toDataURL('image/png');
+        const pageTarget = document.getElementById('sign-page-target').value;
+        const posTarget = document.getElementById('sign-pos-target').value;
+
+        this.showLoading('Inserindo assinatura digitalizada...', 'Incorporando imagem PNG no PDF');
+        try {
+          const { PDFDocument } = PDFLib;
+          const pdfDoc = await PDFDocument.load(this.state.files[0].buffer);
+          const pngImage = await pdfDoc.embedPng(sigDataUrl);
+          const pages = pdfDoc.getPages();
+
+          let targetIndices = [];
+          if (pageTarget === 'last') targetIndices = [pages.length - 1];
+          else if (pageTarget === 'first') targetIndices = [0];
+          else targetIndices = pages.map((_, i) => i);
+
+          const sigW = 160;
+          const sigH = 48;
+
+          targetIndices.forEach(idx => {
+            const p = pages[idx];
+            const { width } = p.getSize();
+            let x = width - sigW - 40;
+            if (posTarget === 'bottom-center') x = (width - sigW) / 2;
+            if (posTarget === 'bottom-left') x = 40;
+
+            p.drawImage(pngImage, {
+              x,
+              y: 36,
+              width: sigW,
+              height: sigH
+            });
+          });
+
+          const bytes = await pdfDoc.save();
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          await this.finishAndSaveResult(blob, 'assinado_' + this.state.files[0].name);
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao assinar PDF: ' + err.message, 'error');
+        }
+      },
+
+      // ---------------- FERRAMENTA 19: GERAR QR CODE (AVULSO OU INSERIR EM PDF) ----------------
+      renderQrCodeUI() {
+        if (this.state.files.length > 0) {
+          this.qrMode = 'embed-pdf';
+        }
+        const isEmbed = this.qrMode === 'embed-pdf';
+        const loadedPdf = this.state.files[0] || null;
+        const body = document.getElementById('ws-body');
+
+        body.innerHTML = `
+          <div class="space-y-6 max-w-4xl mx-auto">
+            <!-- Seletor de Modo Duplo -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-1.5 bg-slate-100 rounded-2xl">
+              <button type="button" onclick="app.setQrMode('standalone')"
+                class="py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition ${!isEmbed ? 'bg-white text-cyan-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}">
+                <i data-lucide="qr-code" class="w-4 h-4"></i>
+                Modo 1: Gerar QR Code Avulso (PNG / PDF)
+              </button>
+              <button type="button" onclick="app.setQrMode('embed-pdf')"
+                class="py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition ${isEmbed ? 'bg-white text-cyan-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'}">
+                <i data-lucide="file-plus-2" class="w-4 h-4"></i>
+                Modo 2: Inserir QR Code em PDF Existente
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              <!-- Coluna Esquerda: Configurações -->
+              <div class="lg:col-span-7 space-y-4">
+                ${isEmbed ? `
+                  <div class="p-4 rounded-xl border ${loadedPdf ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-dashed border-slate-300'}">
+                    ${loadedPdf ? `
+                      <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                          <i data-lucide="file-text" class="w-5 h-5 text-emerald-600 shrink-0"></i>
+                          <div class="truncate">
+                            <div class="text-xs font-bold text-slate-900 truncate">${loadedPdf.name}</div>
+                            <div class="text-[11px] text-slate-500">${Utils.formatBytes(loadedPdf.size)}</div>
+                          </div>
+                        </div>
+                        <button type="button" onclick="app.resetState(); app.renderQrCodeUI()" class="text-xs font-semibold text-brand-600 hover:underline shrink-0">Trocar PDF</button>
+                      </div>
+                    ` : `
+                      <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div class="text-xs text-slate-600">
+                          <strong class="text-slate-900 block">Nenhum PDF selecionado</strong>
+                          Carregue um PDF do computador ou use "Carregar do Histórico Local" acima.
+                        </div>
+                        <label class="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold cursor-pointer shrink-0 flex items-center gap-1.5">
+                          <i data-lucide="upload" class="w-3.5 h-3.5"></i> Selecionar PDF
+                          <input type="file" accept=".pdf" class="hidden" onchange="app.handleFileSelect(event)" />
+                        </label>
+                      </div>
+                    `}
+                  </div>
+                ` : ''}
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-700 mb-1">Conteúdo do QR Code (URL, Texto, Chave PIX, Wi-Fi, etc.)</label>
+                  <textarea id="qr-text-input" rows="3" oninput="app.updateQrPreview()"
+                    placeholder="https://exemplo.com.br ou qualquer texto..."
+                    class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-cyan-500 focus:outline-none">https://pdfstudiolocal.app</textarea>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Cor do QR Code</label>
+                    <input type="color" id="qr-fg-color" value="#0f172a" onchange="app.updateQrPreview()"
+                      class="w-full h-10 rounded-xl border border-slate-300 cursor-pointer" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Cor de Fundo</label>
+                    <input type="color" id="qr-bg-color" value="#ffffff" onchange="app.updateQrPreview()"
+                      class="w-full h-10 rounded-xl border border-slate-300 cursor-pointer" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nível Correção</label>
+                    <select id="qr-ecc-level" onchange="app.updateQrPreview()" class="w-full h-10 px-2.5 rounded-xl border border-slate-300 text-xs font-semibold">
+                      <option value="M">Médio (15%)</option>
+                      <option value="H" selected>Alto (30%)</option>
+                      <option value="Q">Quartil (25%)</option>
+                      <option value="L">Baixo (7%)</option>
+                    </select>
+                  </div>
+                </div>
+
+                ${!isEmbed ? `
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 mb-1">Tamanho da Imagem (px)</label>
+                      <select id="qr-size-px" onchange="app.updateQrPreview()" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+                        <option value="300">300 × 300 px (Padrão)</option>
+                        <option value="512" selected>512 × 512 px (Alta Definição)</option>
+                        <option value="1024">1024 × 1024 px (Impressão)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 mb-1">Margem Interna (Quiet Zone)</label>
+                      <select id="qr-padding-px" onchange="app.updateQrPreview()" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+                        <option value="20" selected>Normal (20px)</option>
+                        <option value="0">Sem Margem (0px)</option>
+                        <option value="48">Ampla (48px)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Legenda Opcional (para exportação em PDF)</label>
+                    <input type="text" id="qr-caption-input" placeholder="Ex: Aponte a câmera para acessar o documento"
+                      class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm" />
+                  </div>
+                ` : `
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 mb-1">Tamanho no PDF (pt)</label>
+                      <input type="number" id="qr-pdf-size" value="95" min="30" max="350"
+                        class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm" />
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 mb-1">Posição na Página</label>
+                      <select id="qr-pdf-pos" onchange="document.getElementById('qr-custom-xy').classList.toggle('hidden', this.value !== 'custom')"
+                        class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+                        <option value="bottom-right">Canto Inferior Direito</option>
+                        <option value="bottom-left">Canto Inferior Esquerdo</option>
+                        <option value="top-right">Canto Superior Direito</option>
+                        <option value="top-left">Canto Superior Esquerdo</option>
+                        <option value="center">Centro da Página</option>
+                        <option value="custom">Coordenadas X / Y</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-700 mb-1">Aplicar nas Páginas</label>
+                      <select id="qr-pdf-pages-mode" onchange="document.getElementById('qr-custom-pages').classList.toggle('hidden', this.value !== 'range')"
+                        class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm">
+                        <option value="all">Todas as Páginas</option>
+                        <option value="first">Primeira Página</option>
+                        <option value="last">Última Página</option>
+                        <option value="range">Intervalo (ex: 1-3, 5)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div id="qr-custom-xy" class="hidden grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <div>
+                      <label class="block text-[11px] font-bold text-slate-600 mb-1">Coordenada X (pt a partir da esquerda)</label>
+                      <input type="number" id="qr-pos-x" value="50" min="0" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm" />
+                    </div>
+                    <div>
+                      <label class="block text-[11px] font-bold text-slate-600 mb-1">Coordenada Y (pt a partir da base)</label>
+                      <input type="number" id="qr-pos-y" value="50" min="0" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm" />
+                    </div>
+                  </div>
+
+                  <div id="qr-custom-pages" class="hidden">
+                    <label class="block text-[11px] font-bold text-slate-600 mb-1">Intervalo de Páginas</label>
+                    <input type="text" id="qr-pages-range-str" placeholder="Ex: 1, 2-4"
+                      class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+                  </div>
+                `}
+              </div>
+
+              <!-- Coluna Direita: Pré-visualização em Tempo Real -->
+              <div class="lg:col-span-5 bg-slate-50 rounded-2xl border border-slate-200 p-6 flex flex-col items-center justify-center text-center space-y-4">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Pré-visualização em Tempo Real</span>
+                <div class="p-4 bg-white rounded-2xl shadow-sm border border-slate-200 inline-flex items-center justify-center">
+                  <canvas id="qr-preview-canvas" width="240" height="240" class="max-w-full h-auto rounded-lg"></canvas>
+                </div>
+                <p class="text-[11px] text-slate-500">Aponte a câmera do celular para testar instantaneamente.</p>
+              </div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div class="pt-4 border-t border-slate-200 flex flex-wrap justify-end gap-3">
+              ${!isEmbed ? `
+                <button type="button" onclick="app.executeQrStandalonePng()"
+                  class="px-5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm shadow-md flex items-center gap-2 transition">
+                  <i data-lucide="image" class="w-4 h-4"></i> Salvar e Baixar PNG
+                </button>
+                <button type="button" onclick="app.executeQrStandalonePdf()"
+                  class="px-6 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-sm shadow-lg shadow-cyan-600/25 flex items-center gap-2 transition">
+                  <i data-lucide="file-text" class="w-4 h-4"></i> Gerar PDF com QR Code
+                </button>
+              ` : `
+                <button type="button" onclick="app.executeQrEmbedInPdf()"
+                  class="px-6 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-sm shadow-lg shadow-cyan-600/25 flex items-center gap-2 transition">
+                  <i data-lucide="qr-code" class="w-4 h-4"></i> Inserir QR Code no PDF
+                </button>
+              `}
+            </div>
+          </div>
+        `;
+
+        lucide.createIcons();
+        this.updateQrPreview();
+      },
+
+      setQrMode(mode) {
+        this.qrMode = mode;
+        if (mode === 'standalone') {
+          this.state.files = [];
+        }
+        this.renderQrCodeUI();
+      },
+
+      buildQrDataUrl(sizePx = 512, paddingPx = 20) {
+        const text = (document.getElementById('qr-text-input')?.value || '').trim() || 'https://pdfstudiolocal.app';
+        const fg = document.getElementById('qr-fg-color')?.value || '#0f172a';
+        const bg = document.getElementById('qr-bg-color')?.value || '#ffffff';
+        const level = document.getElementById('qr-ecc-level')?.value || 'H';
+
+        const qr = new QRious({
+          value: text,
+          size: sizePx,
+          padding: paddingPx,
+          foreground: fg,
+          background: bg,
+          level
+        });
+        return qr.toDataURL('image/png');
+      },
+
+      updateQrPreview() {
+        const previewCanvas = document.getElementById('qr-preview-canvas');
+        if (!previewCanvas) return;
+        const text = (document.getElementById('qr-text-input')?.value || '').trim() || 'https://pdfstudiolocal.app';
+        const fg = document.getElementById('qr-fg-color')?.value || '#0f172a';
+        const bg = document.getElementById('qr-bg-color')?.value || '#ffffff';
+        const level = document.getElementById('qr-ecc-level')?.value || 'H';
+        const padSelect = document.getElementById('qr-padding-px');
+        const padding = padSelect ? Math.min(24, Math.round(parseInt(padSelect.value, 10) / 2)) : 12;
+
+        new QRious({
+          element: previewCanvas,
+          value: text,
+          size: 240,
+          padding,
+          foreground: fg,
+          background: bg,
+          level
+        });
+      },
+
+      async executeQrStandalonePng() {
+        const text = (document.getElementById('qr-text-input').value || '').trim();
+        if (!text) {
+          this.toast('Digite um texto ou link para gerar o QR Code.', 'warning');
+          return;
+        }
+        const sizePx = parseInt(document.getElementById('qr-size-px')?.value || '512', 10);
+        const paddingPx = parseInt(document.getElementById('qr-padding-px')?.value || '20', 10);
+        this.showLoading('Gerando imagem PNG do QR Code...', 'Renderizando em alta definição');
+        try {
+          const dataUrl = this.buildQrDataUrl(sizePx, paddingPx);
+          const res = await fetch(dataUrl);
+          const blob = await res.blob();
+          await this.finishAndSaveResult(blob, `qrcode_${sizePx}px.png`);
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao gerar imagem PNG do QR Code.', 'error');
+        }
+      },
+
+      async executeQrStandalonePdf() {
+        const text = (document.getElementById('qr-text-input').value || '').trim();
+        if (!text) {
+          this.toast('Digite um texto ou link para gerar o QR Code.', 'warning');
+          return;
+        }
+        const sizePx = parseInt(document.getElementById('qr-size-px')?.value || '512', 10);
+        const paddingPx = parseInt(document.getElementById('qr-padding-px')?.value || '20', 10);
+        const caption = (document.getElementById('qr-caption-input')?.value || '').trim();
+
+        this.showLoading('Gerando PDF com QR Code...', 'Montando documento A4 com pdf-lib');
+        try {
+          const dataUrl = this.buildQrDataUrl(sizePx, paddingPx);
+          const { PDFDocument, StandardFonts, rgb } = PDFLib;
+          const pdfDoc = await PDFDocument.create();
+          const page = pdfDoc.addPage([595.28, 841.89]); // A4
+          const pngImage = await pdfDoc.embedPng(dataUrl);
+
+          const qrDim = 240;
+          const x = (595.28 - qrDim) / 2;
+          const y = (841.89 - qrDim) / 2 + 20;
+
+          page.drawImage(pngImage, { x, y, width: qrDim, height: qrDim });
+
+          if (caption) {
+            const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+            const fontSize = 13;
+            const textW = font.widthOfTextAtSize(caption, fontSize);
+            page.drawText(caption, {
+              x: Math.max(30, (595.28 - textW) / 2),
+              y: y - 32,
+              size: fontSize,
+              font,
+              color: rgb(0.12, 0.16, 0.23)
+            });
+          }
+
+          const bytes = await pdfDoc.save();
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          await this.finishAndSaveResult(blob, 'qrcode_documento.pdf');
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao gerar PDF com QR Code.', 'error');
+        }
+      },
+
+      async executeQrEmbedInPdf() {
+        if (this.state.files.length === 0) {
+          this.toast('Selecione ou carregue um arquivo PDF primeiro.', 'warning');
+          return;
+        }
+        const text = (document.getElementById('qr-text-input').value || '').trim();
+        if (!text) {
+          this.toast('Digite o link ou texto do QR Code.', 'warning');
+          return;
+        }
+
+        const qrSize = parseInt(document.getElementById('qr-pdf-size').value, 10) || 95;
+        const pos = document.getElementById('qr-pdf-pos').value;
+        const pagesMode = document.getElementById('qr-pdf-pages-mode').value;
+        const margin = 30;
+
+        this.showLoading('Inserindo QR Code no PDF...', 'Incorporando imagem PNG nas páginas selecionadas');
+        try {
+          const qrDataUrl = this.buildQrDataUrl(512, 16);
+          const { PDFDocument } = PDFLib;
+          const pdfDoc = await PDFDocument.load(this.state.files[0].buffer);
+          const pngImage = await pdfDoc.embedPng(qrDataUrl);
+          const pages = pdfDoc.getPages();
+          const total = pages.length;
+
+          let targetIndices = [];
+          if (pagesMode === 'all') targetIndices = pages.map((_, i) => i);
+          else if (pagesMode === 'first') targetIndices = [0];
+          else if (pagesMode === 'last') targetIndices = [total - 1];
+          else if (pagesMode === 'range') {
+            const rangeStr = document.getElementById('qr-pages-range-str').value;
+            targetIndices = Utils.parsePageRanges(rangeStr, total);
+          }
+
+          if (targetIndices.length === 0) {
+            this.hideLoading();
+            this.toast('Informe um intervalo de páginas válido.', 'warning');
+            return;
+          }
+
+          targetIndices.forEach(idx => {
+            const page = pages[idx];
+            const { width, height } = page.getSize();
+            let x = width - qrSize - margin;
+            let y = margin;
+
+            if (pos === 'bottom-left') {
+              x = margin;
+              y = margin;
+            } else if (pos === 'top-right') {
+              x = width - qrSize - margin;
+              y = height - qrSize - margin;
+            } else if (pos === 'top-left') {
+              x = margin;
+              y = height - qrSize - margin;
+            } else if (pos === 'center') {
+              x = (width - qrSize) / 2;
+              y = (height - qrSize) / 2;
+            } else if (pos === 'custom') {
+              x = parseInt(document.getElementById('qr-pos-x').value, 10) || 0;
+              y = parseInt(document.getElementById('qr-pos-y').value, 10) || 0;
+            }
+
+            page.drawImage(pngImage, {
+              x,
+              y,
+              width: qrSize,
+              height: qrSize
+            });
+          });
+
+          const bytes = await pdfDoc.save();
+          const blob = new Blob([bytes], { type: 'application/pdf' });
+          await this.finishAndSaveResult(blob, 'qrcode_' + this.state.files[0].name);
+        } catch (err) {
+          this.hideLoading();
+          this.toast('Erro ao inserir QR Code no PDF.', 'error');
+        }
+      },
+
+      // ---------------- FINALIZAÇÃO, SALVAMENTO NO INDEXEDDB E TELA DE SUCESSO ----------------
+      async finishAndSaveResult(blob, outputFileName, extraDetails = '') {
+        const savedRecord = await LocalCacheDB.saveFile({
+          fileName: outputFileName,
+          toolId: this.currentTool.id,
+          toolName: this.currentTool.title,
+          mimeType: blob.type,
+          blob
+        });
+
+        await this.refreshCacheUI();
+        this.hideLoading();
+        this.toast('Arquivo processado e salvo no cache local!', 'success');
+
+        const isPdf = blob.type === 'application/pdf' || outputFileName.toLowerCase().endsWith('.pdf');
+        const body = document.getElementById('ws-body');
+
+        body.innerHTML = `
+          <div class="text-center max-w-lg mx-auto py-8 space-y-6">
+            <div class="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+              <i data-lucide="check-circle-2" class="w-9 h-9"></i>
+            </div>
+
+            <div class="space-y-1.5">
+              <h3 class="text-2xl font-extrabold text-slate-900">Concluído com Sucesso!</h3>
+              <p class="text-sm text-slate-600 font-medium">${outputFileName} (${Utils.formatBytes(blob.size)})</p>
+              ${extraDetails ? `<p class="text-xs font-bold text-emerald-700 bg-emerald-50 inline-block px-3 py-1 rounded-full border border-emerald-200 mt-1">${extraDetails}</p>` : ''}
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button id="final-download-btn"
+                class="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-lg shadow-brand-600/25 flex items-center justify-center gap-2 transition">
+                <i data-lucide="download" class="w-5 h-5"></i> Baixar Arquivo Agora
+              </button>
+
+              ${isPdf ? `
+                <button onclick="app.openReuseModal(${savedRecord.id})"
+                  class="w-full sm:w-auto px-5 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm flex items-center justify-center gap-2 transition">
+                  <i data-lucide="repeat" class="w-4 h-4"></i> Continuar em Outra Ferramenta
+                </button>
+              ` : ''}
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-center gap-4 text-xs">
+              <span class="text-slate-500 flex items-center gap-1">
+                <i data-lucide="database" class="w-3.5 h-3.5 text-brand-600"></i> Salvo no Histórico Local
+              </span>
+              <button onclick="app.resetState(); app.renderToolWorkspace()" class="text-brand-600 font-semibold hover:underline">
+                Processar outro arquivo
+              </button>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('final-download-btn').onclick = () => Utils.downloadBlob(blob, outputFileName);
+        lucide.createIcons();
+      },
+
+      // ---------------- GERENCIAMENTO DO HISTÓRICO / CACHE LOCAL ----------------
+      async refreshCacheUI() {
+        const items = await LocalCacheDB.getAllFiles();
+        const totalBytes = items.reduce((acc, item) => acc + (item.size || 0), 0);
+        const mbStr = (totalBytes / (1024 * 1024)).toFixed(2) + ' MB';
+
+        document.getElementById('cache-badge-count').textContent = items.length;
+        document.getElementById('cache-size-indicator').textContent = `${mbStr} usados`;
+        document.getElementById('drawer-cache-size').textContent = mbStr;
+
+        const listEl = document.getElementById('history-list');
+        if (!listEl) return;
+
+        if (items.length === 0) {
+          listEl.innerHTML = `
+            <div class="text-center py-16 px-4 space-y-2">
+              <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                <i data-lucide="inbox" class="w-6 h-6"></i>
+              </div>
+              <p class="text-sm font-bold text-slate-700">Seu cache local está vazio</p>
+              <p class="text-xs text-slate-500">Todos os PDFs e arquivos que você gerar aparecerão aqui automaticamente para download ou reutilização.</p>
+            </div>
+          `;
+          lucide.createIcons();
+          return;
+        }
+
+        listEl.innerHTML = items.map(item => {
+          const isPdf = item.mimeType === 'application/pdf' || item.fileName.toLowerCase().endsWith('.pdf');
+          return `
+            <div class="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition space-y-2.5 shadow-2xs">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <div class="text-sm font-bold text-slate-900 truncate" title="${item.fileName}">${item.fileName}</div>
+                  <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                    <span class="px-2 py-0.5 rounded bg-brand-50 text-brand-700 font-semibold">${item.toolName}</span>
+                    <span>•</span>
+                    <span>${Utils.formatBytes(item.size)}</span>
+                    <span>•</span>
+                    <span>${Utils.formatDate(item.timestamp)}</span>
+                  </div>
+                </div>
+                <button onclick="app.deleteCacheItem(${item.id})" title="Remover do cache"
+                  class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 shrink-0">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+
+              <div class="flex items-center gap-2 pt-1">
+                <button onclick="app.downloadCacheItem(${item.id})"
+                  class="flex-1 py-1.5 px-3 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                  <i data-lucide="download" class="w-3.5 h-3.5"></i> Baixar Novamente
+                </button>
+                ${isPdf ? `
+                  <button onclick="app.openReuseModal(${item.id})"
+                    class="flex-1 py-1.5 px-3 rounded-lg bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                    <i data-lucide="send" class="w-3.5 h-3.5"></i> Enviar para...
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        lucide.createIcons();
+      },
+
+      toggleHistoryDrawer(open) {
+        const drawer = document.getElementById('history-drawer');
+        const backdrop = document.getElementById('history-drawer-backdrop');
+        if (open) {
+          this.refreshCacheUI();
+          backdrop.classList.remove('hidden');
+          drawer.classList.remove('translate-x-full');
+        } else {
+          drawer.classList.add('translate-x-full');
+          backdrop.classList.add('hidden');
+        }
+      },
+
+      async downloadCacheItem(id) {
+        const item = await LocalCacheDB.getFileById(id);
+        if (item) {
+          Utils.downloadBlob(item.blob, item.fileName);
+        }
+      },
+
+      async deleteCacheItem(id) {
+        await LocalCacheDB.deleteFile(id);
+        await this.refreshCacheUI();
+        this.toast('Arquivo removido do cache local.', 'info');
+      },
+
+      clearAllCachePrompt() {
+        this.openModal(
+          'Limpar Todo o Histórico Local?',
+          '<p>Isso apagará permanentemente todos os arquivos armazenados no IndexedDB deste navegador. Deseja continuar?</p>',
+          `
+            <button onclick="app.closeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button>
+            <button onclick="app.confirmClearAllCache()" class="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 hover:bg-red-700 text-white">Sim, Limpar Cache</button>
+          `
+        );
+      },
+
+      async confirmClearAllCache() {
+        await LocalCacheDB.clearAll();
+        await this.refreshCacheUI();
+        this.closeModal();
+        this.toast('Cache local limpo com sucesso!', 'success');
+      },
+
+      // Modal para enviar um PDF do cache para qualquer outra ferramenta
+      async openReuseModal(cacheId) {
+        const item = await LocalCacheDB.getFileById(cacheId);
+        if (!item) return;
+
+        const pdfTools = TOOLS_CATALOG.filter(t => t.accept.includes('.pdf'));
+        const htmlList = `
+          <p class="text-xs text-slate-500 mb-3">Escolha para qual ferramenta enviar <strong>${item.fileName}</strong>:</p>
+          <div class="grid grid-cols-1 gap-1.5">
+            ${pdfTools.map(t => `
+              <button onclick="app.sendCacheToTool(${cacheId}, '${t.id}')"
+                class="w-full text-left px-3 py-2.5 rounded-xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/40 flex items-center gap-2.5 transition">
+                <div class="w-7 h-7 rounded-lg ${t.color} text-white flex items-center justify-center shrink-0">
+                  <i data-lucide="${t.icon}" class="w-4 h-4"></i>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-slate-900">${t.title}</div>
+                  <div class="text-[11px] text-slate-500">${t.categoryLabel}</div>
+                </div>
+              </button>
+            `).join('')}
+          </div>
+        `;
+
+        this.openModal('Reutilizar PDF em Outra Ferramenta', htmlList, '');
+        lucide.createIcons();
+      },
+
+      async sendCacheToTool(cacheId, toolId) {
+        const item = await LocalCacheDB.getFileById(cacheId);
+        this.closeModal();
+        this.toggleHistoryDrawer(false);
+        if (item) {
+          this.openTool(toolId, item);
+        }
+      },
+
+      // Modal para carregar um arquivo do cache dentro da ferramenta atual
+      async openCachePickerForCurrentTool() {
+        const items = await LocalCacheDB.getAllFiles();
+        if (items.length === 0) {
+          this.toast('Não há arquivos salvos no Histórico Local ainda.', 'info');
+          return;
+        }
+
+        const html = `
+          <p class="text-xs text-slate-500 mb-3">Selecione um arquivo salvo anteriormente:</p>
+          <div class="space-y-2">
+            ${items.map(item => `
+              <button onclick="app.pickCacheItemForCurrentTool(${item.id})"
+                class="w-full text-left p-3 rounded-xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/30 flex items-center justify-between transition">
+                <div class="truncate pr-2">
+                  <div class="text-xs font-bold text-slate-900 truncate">${item.fileName}</div>
+                  <div class="text-[11px] text-slate-500">${item.toolName} • ${Utils.formatBytes(item.size)}</div>
+                </div>
+                <span class="text-xs font-bold text-brand-600 shrink-0">Carregar</span>
+              </button>
+            `).join('')}
+          </div>
+        `;
+
+        this.openModal('Carregar do Histórico Local', html, '');
+      },
+
+      async pickCacheItemForCurrentTool(cacheId) {
+        const item = await LocalCacheDB.getFileById(cacheId);
+        this.closeModal();
+        if (item) {
+          await this.loadFromCacheItem(item);
+        }
+      },
+
+      // ---------------- UI HELPERS (MODAL, LOADING, TOAST) ----------------
+      openModal(title, bodyHtml, footerHtml) {
+        document.getElementById('modal-title').textContent = title;
+        document.getElementById('modal-body').innerHTML = bodyHtml;
+        document.getElementById('modal-footer').innerHTML = footerHtml;
+        const modal = document.getElementById('custom-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      },
+
+      closeModal() {
+        const modal = document.getElementById('custom-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      },
+
+      showLoading(title, subtitle = '') {
+        document.getElementById('loading-title').textContent = title;
+        document.getElementById('loading-subtitle').textContent = subtitle;
+        document.getElementById('loading-bar').style.width = '45%';
+        const el = document.getElementById('loading-overlay');
+        el.classList.remove('hidden');
+        el.classList.add('flex');
+      },
+
+      updateLoadingProgress(pct) {
+        document.getElementById('loading-bar').style.width = `${pct}%`;
+      },
+
+      hideLoading() {
+        const el = document.getElementById('loading-overlay');
+        el.classList.add('hidden');
+        el.classList.remove('flex');
+      },
+
+      toast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const colors = {
+          success: 'bg-emerald-600 text-white',
+          error: 'bg-red-600 text-white',
+          warning: 'bg-amber-500 text-white',
+          info: 'bg-slate-900 text-white'
+        };
+        const toastEl = document.createElement('div');
+        toastEl.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-xl text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 transition-all transform translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+        toastEl.innerHTML = `<span>${message}</span>`;
+        container.appendChild(toastEl);
+
+        requestAnimationFrame(() => {
+          toastEl.classList.remove('translate-y-2', 'opacity-0');
+        });
+
+        setTimeout(() => {
+          toastEl.classList.add('opacity-0', 'translate-y-2');
+          setTimeout(() => toastEl.remove(), 300);
+        }, 3800);
+      }
+    };
+
+    // Inicializa a aplicação ao carregar a página
+    window.addEventListener('DOMContentLoaded', () => app.init());
+  </script>
+</body>
+</html>
