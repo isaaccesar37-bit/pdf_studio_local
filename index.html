@@ -1405,21 +1405,41 @@
 
             <div class="space-y-3">
               <label class="block text-sm font-bold text-slate-800">Nível de Compressão:</label>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <label class="p-4 rounded-xl border border-slate-200 hover:border-emerald-500 cursor-pointer">
-                  <input type="radio" name="compress-level" value="extreme" class="accent-emerald-600 mb-2" />
-                  <div class="font-bold text-sm text-slate-900">Extrema</div>
-                  <div class="text-xs text-slate-500 mt-1">Máxima redução de tamanho (JPEG 45%, escala 1.0x).</div>
+              <div class="grid grid-cols-1 gap-2.5">
+                <label class="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 cursor-pointer flex items-start gap-3">
+                  <input type="radio" name="compress-level" value="extreme" class="accent-emerald-600 mt-1" />
+                  <div>
+                    <div class="font-bold text-sm text-slate-900">Extrema</div>
+                    <div class="text-xs text-slate-500">Máxima redução de tamanho (JPEG 45%, escala 1.0x).</div>
+                  </div>
                 </label>
-                <label class="p-4 rounded-xl border-2 border-emerald-600 bg-emerald-50/40 cursor-pointer">
-                  <input type="radio" name="compress-level" value="recommended" checked class="accent-emerald-600 mb-2" />
-                  <div class="font-bold text-sm text-slate-900">Recomendada</div>
-                  <div class="text-xs text-slate-500 mt-1">Equilíbrio ideal entre qualidade e tamanho (JPEG 68%, 1.3x).</div>
+                <label class="p-3.5 rounded-xl border-2 border-emerald-600 bg-emerald-50/40 cursor-pointer flex items-start gap-3">
+                  <input type="radio" name="compress-level" value="recommended" checked class="accent-emerald-600 mt-1" />
+                  <div>
+                    <div class="font-bold text-sm text-slate-900">Recomendada</div>
+                    <div class="text-xs text-slate-500">Equilíbrio ideal entre qualidade e tamanho (JPEG 68%, escala 1.3x).</div>
+                  </div>
                 </label>
-                <label class="p-4 rounded-xl border border-slate-200 hover:border-emerald-500 cursor-pointer">
-                  <input type="radio" name="compress-level" value="low" class="accent-emerald-600 mb-2" />
-                  <div class="font-bold text-sm text-slate-900">Baixa</div>
-                  <div class="text-xs text-slate-500 mt-1">Alta nitidez com compressão leve (JPEG 85%, 1.6x).</div>
+                <label class="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 cursor-pointer flex items-start gap-3">
+                  <input type="radio" name="compress-level" value="low" class="accent-emerald-600 mt-1" />
+                  <div>
+                    <div class="font-bold text-sm text-slate-900">Baixa</div>
+                    <div class="text-xs text-slate-500">Alta nitidez com compressão leve (JPEG 85%, escala 1.6x).</div>
+                  </div>
+                </label>
+                <label class="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 cursor-pointer flex items-start gap-3">
+                  <input type="radio" name="compress-level" value="gentle" class="accent-emerald-600 mt-1" />
+                  <div>
+                    <div class="font-bold text-sm text-slate-900">Suave (Alta Fidelidade)</div>
+                    <div class="text-xs text-slate-500">Preserva textos finos e gráficos detalhados (JPEG 92%, escala 2.0x).</div>
+                  </div>
+                </label>
+                <label class="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-500 cursor-pointer flex items-start gap-3">
+                  <input type="radio" name="compress-level" value="minimal" class="accent-emerald-600 mt-1" />
+                  <div>
+                    <div class="font-bold text-sm text-slate-900">Mínima (Qualidade Máxima)</div>
+                    <div class="text-xs text-slate-500">Otimização sutil com resolução de impressão (JPEG 96%, escala 2.5x).</div>
+                  </div>
                 </label>
               </div>
             </div>
@@ -1438,7 +1458,9 @@
         const presets = {
           extreme: { scale: 1.0, quality: 0.45 },
           recommended: { scale: 1.3, quality: 0.68 },
-          low: { scale: 1.6, quality: 0.85 }
+          low: { scale: 1.6, quality: 0.85 },
+          gentle: { scale: 2.0, quality: 0.92 },
+          minimal: { scale: 2.5, quality: 0.96 }
         };
         const cfg = presets[level];
         const file = this.state.files[0];
